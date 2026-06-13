@@ -28,45 +28,53 @@ jobs:
           echo "🔐 Configuring SSH..."
           sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-          sudo sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
           sudo sed -i 's/#GatewayPorts no/GatewayPorts yes/' /etc/ssh/sshd_config
           sudo service ssh restart
 
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
 
-      - name: 🔑 Generate SSH Key for serveo
+      - name: 🔑 Generate SSH Key
         run: |
           mkdir -p ~/.ssh
           ssh-keygen -t rsa -b 4096 -f ~/.ssh/serveo_key -N "" -q
-          echo "SSH key generated!"
-          # Add serveo.net to known hosts
           ssh-keyscan -H serveo.net >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH key generated!"
 
       - name: 🌐 Start Tunnel (serveo.net)
         run: |
           echo "🚇 Starting serveo.net tunnel..."
+
+          SPORT=$((RANDOM % 50000 + 10000))
+          echo "🎲 Trying port: $SPORT"
+
           autossh -M 0 \
             -o StrictHostKeyChecking=no \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=3 \
-            -o ExitOnForwardFailure=yes \
             -i ~/.ssh/serveo_key \
-            -R 0:localhost:22 \
+            -R $SPORT:localhost:22 \
             serveo.net > tunnel.log 2>&1 &
 
           echo "⏳ Waiting for tunnel..."
+          SUCCESS=0
           for i in {1..25}; do
             sleep 4
-            PORT=$(grep -oP 'port \K[0-9]+' tunnel.log 2>/dev/null | head -1 || echo "")
-            if [ -n "$PORT" ]; then
-              echo "================================"
-              echo "✅ TUNNEL READY!"
-              echo "🌐 HOST : serveo.net"
-              echo "🔌 PORT : $PORT"
-              echo "================================"
-              echo "SSH_PORT=$PORT" >> $GITHUB_ENV
+            if grep -q "forwarding" tunnel.log 2>/dev/null; then
+              SUCCESS=1
               break
+            fi
+            if grep -q "Error" tunnel.log 2>/dev/null; then
+              echo "🔄 Port busy, retrying..."
+              kill %% 2>/dev/null || true
+              sleep 2
+              SPORT=$((RANDOM % 50000 + 10000))
+              autossh -M 0 \
+                -o StrictHostKeyChecking=no \
+                -o ServerAliveInterval=30 \
+                -i ~/.ssh/serveo_key \
+                -R $SPORT:localhost:22 \
+                serveo.net > tunnel.log 2>&1 &
             fi
             echo "⏳ Retry $i/25..."
           done
@@ -74,6 +82,13 @@ jobs:
           echo ""
           echo "--- Tunnel Log ---"
           cat tunnel.log || true
+
+          echo "================================"
+          echo "✅ TUNNEL READY!"
+          echo "🌐 HOST : serveo.net"
+          echo "🔌 PORT : $SPORT"
+          echo "================================"
+          echo "SSH_PORT=$SPORT" >> $GITHUB_ENV
 
       - name: 🔐 Login Details 😏
         run: |
