@@ -14,7 +14,7 @@ jobs:
           sudo apt update
 
           echo "📦 Installing packages..."
-          sudo apt install -y openssh-server curl neofetch
+          sudo apt install -y openssh-server curl
 
           echo "🎲 Generating login..."
           USERNAME=$(tr -dc a-z0-9 </dev/urandom | head -c 10)
@@ -23,12 +23,11 @@ jobs:
           echo "👤 Creating user..."
           sudo useradd -m $USERNAME
           echo "$USERNAME:$PASSWORD" | sudo chpasswd
-
-          echo "🔥 Auto neofetch on login"
-          echo "neofetch" >> /home/$USERNAME/.bashrc
+          sudo usermod -aG sudo $USERNAME
 
           echo "🔐 Enabling SSH..."
           sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo service ssh start
 
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
@@ -42,14 +41,16 @@ jobs:
       - name: 🚀 Start Tunnel 🌍
         run: |
           ./cloudflared tunnel --url ssh://localhost:22 > tunnel.log 2>&1 &
-          sleep 10
-          cat tunnel.log
+          sleep 15
+          grep -o 'https://[^ ]*\.trycloudflare\.com' tunnel.log || cat tunnel.log
 
       - name: 🔐 Login Details 😏
         run: |
+          echo "================================"
           echo "👤 USERNAME: $USERNAME"
           echo "🔑 PASSWORD: $PASSWORD"
+          echo "🔌 PORT: 22"
+          echo "================================"
 
       - name: ⏳ Keep Alive 😴
         run: sleep 21600
-        
