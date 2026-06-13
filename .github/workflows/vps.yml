@@ -14,7 +14,7 @@ jobs:
           sudo apt update
 
           echo "📦 Installing packages..."
-          sudo apt install -y openssh-server curl
+          sudo apt install -y openssh-server curl python3
 
           echo "🎲 Generating login..."
           USERNAME=$(tr -dc a-z0-9 </dev/urandom | head -c 10)
@@ -33,23 +33,27 @@ jobs:
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
 
-      - name: 🌐 Install Tunnel 😈
+      - name: 🌐 Install & Start Ngrok
         run: |
-          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
-          chmod +x cloudflared
-
-      - name: 🚀 Start Tunnel 🌍
-        run: |
-          ./cloudflared tunnel --url ssh://localhost:22 > tunnel.log 2>&1 &
-          sleep 15
-          grep -o 'https://[^ ]*\.trycloudflare\.com' tunnel.log || cat tunnel.log
+          curl -L https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz
+          ./ngrok authtoken ${{ secrets.NGROK_TOKEN }}
+          ./ngrok tcp 22 > /dev/null 2>&1 &
+          sleep 8
+          curl -s http://localhost:4040/api/tunnels | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          url = data['tunnels'][0]['public_url']
+          host = url.split('//')[1].split(':')[0]
+          port = url.split(':')[2]
+          print('HOST:', host)
+          print('PORT:', port)
+          "
 
       - name: 🔐 Login Details 😏
         run: |
           echo "================================"
-          echo "👤 USERNAME: $USERNAME"
-          echo "🔑 PASSWORD: $PASSWORD"
-          echo "🔌 PORT: 22"
+          echo "👤 USERNAME : $USERNAME"
+          echo "🔑 PASSWORD : $PASSWORD"
           echo "================================"
 
       - name: ⏳ Keep Alive 😴
