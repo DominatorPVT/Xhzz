@@ -14,20 +14,20 @@
 
 ## 📌 Overview
 
-**Action VPS** gives you a temporary Ubuntu environment running inside GitHub Actions or GitLab CI — with SSH access via **localhost.run** tunnel (no token required!).
+**Action VPS** gives you a temporary Ubuntu environment running inside GitHub Actions or GitLab CI — with SSH access via **serveo.net** tunnel.
 
 > ⚠️ This is **not** a real VPS. It runs for ~6 hours per session and resets every time.
 
 ---
 
-## ✅ Why localhost.run?
+## ✅ Why serveo.net?
 
 | Feature | Details |
 |---|---|
 | 💰 Cost | 100% Free |
-| 🔑 Token needed | ❌ No token required |
+| 🔑 Token needed | ❌ No token, no signup |
 | 🌐 Tunnel type | SSH reverse tunnel |
-| ⚡ Speed | Fast & reliable |
+| ⚡ Setup | Zero config needed |
 | 🔒 Secure | Encrypted SSH tunnel |
 
 ---
@@ -64,16 +64,21 @@
 Use any SSH client (**Terminus**, **JuiceSSH**, **PuTTY**, **Termux**).
 
 ```
-Host     → (HOST from logs)
+Host     → serveo.net
 Port     → (PORT from logs)
 Username → (USERNAME from logs)
 Password → (PASSWORD from logs)
 ```
 
-### Termux / Terminal command:
+### Termux / Terminal one-line command:
 
 ```bash
-ssh USERNAME@HOST -p PORT
+ssh USERNAME@serveo.net -p PORT
+```
+
+Example:
+```bash
+ssh abc123@serveo.net -p 45231
 ```
 
 ---
@@ -83,8 +88,9 @@ ssh USERNAME@HOST -p PORT
 | Feature | Details |
 |---|---|
 | 🐧 OS | Ubuntu (latest) |
-| 🔐 SSH | Random username & password |
-| 🌐 Tunnel | localhost.run (no token needed!) |
+| 🔐 SSH | Random username & password (auto generated) |
+| 🌐 Tunnel | serveo.net (no token needed!) |
+| 🔄 Auto reconnect | autossh keeps tunnel alive |
 | ⏳ Duration | ~6 hours per session |
 | 🖐️ Start | Manual trigger only |
 
@@ -127,10 +133,10 @@ action-vps/
 ## ⚠️ Important Notes
 
 - Session lasts **~6 hours** only
-- **Credentials change** on every run
+- **HOST is always `serveo.net`** — only PORT changes each run
 - Workflow must be **started manually** each time
 - All data is **lost** after session ends
-- **No token needed** — localhost.run is free forever
+- **No token needed** — serveo.net is free forever
 
 ---
 

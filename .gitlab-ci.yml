@@ -6,50 +6,60 @@ vps:
   image: ubuntu:latest
   timeout: 6h
   script:
-    - apt update
-    - apt install -y openssh-server curl python3 openssh-client
+    - apt update -y
+    - apt install -y openssh-server curl python3 openssh-client autossh
 
-    - USERNAME=$(tr -dc a-z0-9 </dev/urandom | head -c 10)
-    - PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10)
+    - USERNAME=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 10 | head -n 1)
+    - PASSWORD=$(cat /dev/urandom | tr -dc 'A-Za-z0-9' | fold -w 12 | head -n 1)
 
-    - useradd -m $USERNAME
+    - useradd -m -s /bin/bash $USERNAME
     - echo "$USERNAME:$PASSWORD" | chpasswd
     - usermod -aG sudo $USERNAME
 
     - sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
     - sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    - sed -i 's/#GatewayPorts no/GatewayPorts yes/' /etc/ssh/sshd_config
     - service ssh restart || true
 
-    - ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
+    - mkdir -p ~/.ssh
+    - ssh-keygen -t rsa -b 4096 -f ~/.ssh/serveo_key -N "" -q
+    - ssh-keyscan -H serveo.net >> ~/.ssh/known_hosts 2>/dev/null || true
 
     - |
-      ssh -o StrictHostKeyChecking=no \
-          -o ServerAliveInterval=60 \
-          -R 0:localhost:22 \
-          plan@localhost.run \
-          -- --output json 2>/dev/null > tunnel.log &
+      autossh -M 0 \
+        -o StrictHostKeyChecking=no \
+        -o ServerAliveInterval=30 \
+        -o ServerAliveCountMax=3 \
+        -o ExitOnForwardFailure=yes \
+        -i ~/.ssh/serveo_key \
+        -R 0:localhost:22 \
+        serveo.net > tunnel.log 2>&1 &
 
     - |
-      for i in $(seq 1 20); do
-        sleep 3
-        URL=$(grep -o '"address":"[^"]*"' tunnel.log 2>/dev/null | head -1 | cut -d'"' -f4 || echo "")
-        if [ -n "$URL" ]; then
-          HOST=$(echo "$URL" | cut -d':' -f1)
-          PORT=$(echo "$URL" | cut -d':' -f2)
+      for i in $(seq 1 25); do
+        sleep 4
+        PORT=$(grep -oP 'port \K[0-9]+' tunnel.log 2>/dev/null | head -1 || echo "")
+        if [ -n "$PORT" ]; then
           echo "================================"
-          echo "🌐 HOST: $HOST"
-          echo "🔌 PORT: $PORT"
+          echo "✅ TUNNEL READY!"
+          echo "🌐 HOST : serveo.net"
+          echo "🔌 PORT : $PORT"
           echo "================================"
           break
         fi
-        echo "Retry $i/20..."
+        echo "Retry $i/25..."
       done
 
     - cat tunnel.log || true
 
-    - echo "================================"
-    - echo "USERNAME => $USERNAME"
-    - echo "PASSWORD => $PASSWORD"
-    - echo "================================"
+    - echo "╔══════════════════════════════╗"
+    - echo "║       SSH LOGIN DETAILS      ║"
+    - echo "╠══════════════════════════════╣"
+    - echo "🌐 HOST => serveo.net"
+    - echo "🔌 PORT => $PORT"
+    - echo "👤 USER => $USERNAME"
+    - echo "🔑 PASS => $PASSWORD"
+    - echo "💻 CMD  => ssh $USERNAME@serveo.net -p $PORT"
+    - echo "╚══════════════════════════════╝"
 
     - sleep 21600
