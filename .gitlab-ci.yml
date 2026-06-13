@@ -7,59 +7,42 @@ vps:
   timeout: 6h
   script:
     - apt update -y
-    - apt install -y openssh-server curl python3 openssh-client autossh
+    - apt install -y curl xz-utils
 
-    - USERNAME=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 10)
-    - PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
-
-    - useradd -m -s /bin/bash $USERNAME
-    - echo "$USERNAME:$PASSWORD" | chpasswd
-    - usermod -aG sudo $USERNAME
-
-    - sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    - sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    - sed -i 's/#GatewayPorts no/GatewayPorts yes/' /etc/ssh/sshd_config
-    - service ssh restart || true
+    - curl -Lo tmate.tar.xz https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz
+    - tar -xf tmate.tar.xz
+    - mv tmate-2.4.0-static-linux-amd64/tmate /usr/bin/tmate
+    - rm -rf tmate.tar.xz tmate-2.4.0-static-linux-amd64
 
     - mkdir -p ~/.ssh
-    - ssh-keygen -t rsa -b 4096 -f ~/.ssh/serveo_key -N "" -q
-    - ssh-keyscan -H serveo.net >> ~/.ssh/known_hosts 2>/dev/null || true
+    - ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
+    - ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -q
 
-    - |
-      autossh -M 0 \
-        -o StrictHostKeyChecking=no \
-        -o ServerAliveInterval=30 \
-        -o ServerAliveCountMax=3 \
-        -o ExitOnForwardFailure=yes \
-        -i ~/.ssh/serveo_key \
-        -R 0:localhost:22 \
-        serveo.net > tunnel.log 2>&1 &
+    - tmate -S /tmp/tmate.sock new-session -d
+    - tmate -S /tmp/tmate.sock wait tmate-ready
 
-    - |
-      for i in $(seq 1 25); do
-        sleep 4
-        PORT=$(grep -oP 'port \K[0-9]+' tunnel.log 2>/dev/null | head -1 || echo "")
-        if [ -n "$PORT" ]; then
-          echo "================================"
-          echo "✅ TUNNEL READY!"
-          echo "🌐 HOST : serveo.net"
-          echo "🔌 PORT : $PORT"
-          echo "================================"
-          break
-        fi
-        echo "Retry $i/25..."
-      done
+    - SSH_CMD=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
+    - WEB_URL=$(tmate -S /tmp/tmate.sock display -p '#{tmate_web}')
 
-    - cat tunnel.log || true
-
-    - echo "╔══════════════════════════════╗"
-    - echo "║       SSH LOGIN DETAILS      ║"
-    - echo "╠══════════════════════════════╣"
-    - echo "🌐 HOST => serveo.net"
-    - echo "🔌 PORT => $PORT"
-    - echo "👤 USER => $USERNAME"
-    - echo "🔑 PASS => $PASSWORD"
-    - echo "💻 CMD  => ssh $USERNAME@serveo.net -p $PORT"
-    - echo "╚══════════════════════════════╝"
+    - echo ""
+    - echo "╔════════════════════════════════════════════╗"
+    - echo "║           🚀 VPS LOGIN DETAILS             ║"
+    - echo "╠════════════════════════════════════════════╣"
+    - echo "║ 💻 SSH CMD => $SSH_CMD"
+    - echo "║ 🌐 WEB URL => $WEB_URL"
+    - echo "╠════════════════════════════════════════════╣"
+    - HOST=$(echo $SSH_CMD | awk '{print $3}' | cut -d'@' -f2)
+    - USER=$(echo $SSH_CMD | awk '{print $3}' | cut -d'@' -f1)
+    - echo "║ 🌐 Host     => $HOST"
+    - echo "║ 🔌 Port     => 22"
+    - echo "║ 👤 Username => $USER"
+    - echo "║ 🔑 Auth     => No password (key based)"
+    - echo "╚════════════════════════════════════════════╝"
+    - echo ""
+    - echo "📊 System Info:"
+    - echo "🖥️  CPU  => $(nproc) cores"
+    - echo "💾 RAM  => $(free -h | awk '/^Mem:/ {print $2}')"
+    - echo "💿 DISK => $(df -h / | awk 'NR==2 {print $4}') free"
+    - echo "🌍 IP   => $(curl -s ifconfig.me)"
 
     - sleep 21600

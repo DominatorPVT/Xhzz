@@ -14,21 +14,21 @@
 
 ## 📌 Overview
 
-**Action VPS** gives you a temporary Ubuntu environment running inside GitHub Actions or GitLab CI — with SSH access via **serveo.net** tunnel.
+**Action VPS** gives you a free temporary Ubuntu shell via **tmate** — works 100% on GitHub Actions & GitLab CI. No tokens, no signup required!
 
-> ⚠️ This is **not** a real VPS. It runs for ~6 hours per session and resets every time.
+> ⚠️ Not a real VPS. Runs ~6 hours per session. All data lost after session ends.
 
 ---
 
-## ✅ Why serveo.net?
+## ✅ Why tmate?
 
 | Feature | Details |
 |---|---|
 | 💰 Cost | 100% Free |
-| 🔑 Token needed | ❌ No token, no signup |
-| 🌐 Tunnel type | SSH reverse tunnel |
-| ⚡ Setup | Zero config needed |
-| 🔒 Secure | Encrypted SSH tunnel |
+| 🔑 Token needed | ❌ None |
+| 🌐 Access | SSH + Web browser |
+| ⚡ Works on GitHub Actions | ✅ Yes |
+| 🔒 Secure | Encrypted tunnel |
 
 ---
 
@@ -37,48 +37,53 @@
 ### GitHub Actions
 
 ```
-1. Star ⭐ & Fork 🍴 this repository
+1. Star ⭐ & Fork 🍴 this repo
 2. Go to Actions tab
 3. Select "Action VPS" workflow
 4. Click "Run workflow" ▶️
-5. Open the running job logs
-6. Find HOST, PORT, USERNAME, PASSWORD in logs
+5. Open logs → find SSH details
 ```
 
 ### GitLab CI
 
 ```
-1. Import/fork this repo on GitLab
+1. Fork/import this repo on GitLab
 2. Go to CI/CD → Pipelines
 3. Click "Run pipeline"
-4. Open job logs
-5. Find HOST, PORT, USERNAME, PASSWORD in logs
+4. Open job logs → find SSH details
 ```
-
-> ✅ No secrets or tokens needed — just fork and run!
 
 ---
 
-## 🔌 How to Connect via SSH
+## 🔌 How to Connect (Terminus)
 
-Use any SSH client (**Terminus**, **JuiceSSH**, **PuTTY**, **Termux**).
+Logs mein yeh dikhega:
 
 ```
-Host     → serveo.net
-Port     → (PORT from logs)
-Username → (USERNAME from logs)
-Password → (PASSWORD from logs)
+╔════════════════════════════════════════════╗
+║           🚀 VPS LOGIN DETAILS             ║
+╠════════════════════════════════════════════╣
+║ 💻 SSH CMD : ssh abc123@nyc1.tmate.io
+║ 🌐 WEB URL : https://tmate.io/t/abc123
+╠════════════════════════════════════════════╣
+║ 🌐 Host     : nyc1.tmate.io
+║ 🔌 Port     : 22
+║ 👤 Username : abc123
+║ 🔑 Auth     : No password (key based)
+╚════════════════════════════════════════════╝
 ```
 
-### Termux / Terminal one-line command:
+**Terminus Settings:**
+```
+Host     → nyc1.tmate.io  (from logs)
+Port     → 22
+Username → abc123         (from logs)
+Auth     → No password needed
+```
 
+**Ya seedha terminal mein:**
 ```bash
-ssh USERNAME@serveo.net -p PORT
-```
-
-Example:
-```bash
-ssh abc123@serveo.net -p 45231
+ssh abc123@nyc1.tmate.io
 ```
 
 ---
@@ -88,11 +93,12 @@ ssh abc123@serveo.net -p 45231
 | Feature | Details |
 |---|---|
 | 🐧 OS | Ubuntu (latest) |
-| 🔐 SSH | Random username & password (auto generated) |
-| 🌐 Tunnel | serveo.net (no token needed!) |
-| 🔄 Auto reconnect | autossh keeps tunnel alive |
-| ⏳ Duration | ~6 hours per session |
-| 🖐️ Start | Manual trigger only |
+| 🌐 Tunnel | tmate (100% working) |
+| 🖥️ CPU | 2 cores |
+| 💾 RAM | ~7 GB |
+| 💿 Disk | ~30 GB |
+| ⏳ Duration | ~6 hours |
+| 🔄 New session | New details every run |
 
 ---
 
@@ -110,10 +116,9 @@ ssh abc123@serveo.net -p 45231
 
 | Type | Limit |
 |---|---|
-| Repository storage | 5 GB per namespace |
-| CI/CD Job artifacts | 1 GB |
+| Repository storage | 5 GB |
+| CI/CD artifacts | 1 GB |
 | Pipeline minutes | 400 min/month |
-| Monthly reset | ✅ Pipeline minutes reset monthly |
 
 ---
 
@@ -133,10 +138,9 @@ action-vps/
 ## ⚠️ Important Notes
 
 - Session lasts **~6 hours** only
-- **HOST is always `serveo.net`** — only PORT changes each run
-- Workflow must be **started manually** each time
-- All data is **lost** after session ends
-- **No token needed** — serveo.net is free forever
+- **New SSH details every run**
+- Manual start required every time
+- All data lost after session ends
 
 ---
 
