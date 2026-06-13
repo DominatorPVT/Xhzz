@@ -14,7 +14,7 @@ jobs:
           sudo apt update
 
           echo "📦 Installing packages..."
-          sudo apt install -y openssh-server curl python3
+          sudo apt install -y openssh-server curl python3 openssh-client
 
           echo "🎲 Generating login..."
           USERNAME=$(tr -dc a-z0-9 </dev/urandom | head -c 10)
@@ -28,35 +28,41 @@ jobs:
           echo "🔐 Enabling SSH..."
           sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-          sudo service ssh start
+          sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+          sudo service ssh restart
 
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
 
-      - name: 🌐 Install & Start Ngrok
+      - name: 🌐 Start Tunnel (localhost.run)
         run: |
-          curl -L https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz
-          ./ngrok authtoken ${{ secrets.NGROK_TOKEN }}
-          nohup ./ngrok tcp 22 --log=stdout > ngrok.log 2>&1 &
+          echo "🔑 Generating SSH key..."
+          ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
 
-          echo "⏳ Waiting for ngrok tunnel..."
+          echo "🚇 Starting localhost.run tunnel..."
+          ssh -o StrictHostKeyChecking=no \
+              -o ServerAliveInterval=60 \
+              -R 0:localhost:22 \
+              plan@localhost.run \
+              -- --output json 2>/dev/null > tunnel.log &
+
+          echo "⏳ Waiting for tunnel..."
           for i in {1..20}; do
             sleep 3
-            RESPONSE=$(curl -sf http://localhost:4040/api/tunnels 2>/dev/null || echo "")
-            if [ -n "$RESPONSE" ]; then
-              URL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['tunnels'][0]['public_url'])" 2>/dev/null || echo "")
-              if [ -n "$URL" ]; then
-                HOST=$(echo "$URL" | cut -d'/' -f3 | cut -d':' -f1)
-                PORT=$(echo "$URL" | cut -d':' -f3)
-                echo "================================"
-                echo "🌐 HOST: $HOST"
-                echo "🔌 PORT: $PORT"
-                echo "================================"
-                break
-              fi
+            URL=$(grep -o '"address":"[^"]*"' tunnel.log 2>/dev/null | head -1 | cut -d'"' -f4 || echo "")
+            if [ -n "$URL" ]; then
+              HOST=$(echo "$URL" | cut -d':' -f1)
+              PORT=$(echo "$URL" | cut -d':' -f2)
+              echo "================================"
+              echo "🌐 HOST: $HOST"
+              echo "🔌 PORT: $PORT"
+              echo "================================"
+              break
             fi
             echo "Retry $i/20..."
           done
+
+          cat tunnel.log || true
 
       - name: 🔐 Login Details 😏
         run: |
