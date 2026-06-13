@@ -37,21 +37,25 @@ jobs:
         run: |
           curl -L https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz
           ./ngrok authtoken ${{ secrets.NGROK_TOKEN }}
-          ./ngrok tcp 22 > /dev/null 2>&1 &
+          nohup ./ngrok tcp 22 --log=stdout > ngrok.log 2>&1 &
 
           echo "⏳ Waiting for ngrok tunnel..."
-          for i in {1..15}; do
+          for i in {1..20}; do
             sleep 3
-            RESPONSE=$(curl -s http://localhost:4040/api/tunnels)
-            if echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['tunnels'][0]['public_url'])" 2>/dev/null; then
-              URL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['tunnels'][0]['public_url'])")
-              echo "================================"
-              echo "🌐 HOST: $(echo $URL | cut -d'/' -f3 | cut -d':' -f1)"
-              echo "🔌 PORT: $(echo $URL | cut -d':' -f3)"
-              echo "================================"
-              break
+            RESPONSE=$(curl -sf http://localhost:4040/api/tunnels 2>/dev/null || echo "")
+            if [ -n "$RESPONSE" ]; then
+              URL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['tunnels'][0]['public_url'])" 2>/dev/null || echo "")
+              if [ -n "$URL" ]; then
+                HOST=$(echo "$URL" | cut -d'/' -f3 | cut -d':' -f1)
+                PORT=$(echo "$URL" | cut -d':' -f3)
+                echo "================================"
+                echo "🌐 HOST: $HOST"
+                echo "🔌 PORT: $PORT"
+                echo "================================"
+                break
+              fi
             fi
-            echo "Retry $i..."
+            echo "Retry $i/20..."
           done
 
       - name: 🔐 Login Details 😏
