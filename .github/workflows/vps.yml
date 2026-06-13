@@ -8,102 +8,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🛠️ Setup VPS 😎
+      - name: 🛠️ Setup & Start tmate
         run: |
-          echo "🚀 Updating system..."
-          sudo apt update -y
+          echo "📦 Installing tmate..."
+          curl -Lo tmate.tar.xz https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz
+          tar -xf tmate.tar.xz
+          sudo mv tmate-2.4.0-static-linux-amd64/tmate /usr/bin/tmate
+          rm -rf tmate.tar.xz tmate-2.4.0-static-linux-amd64
 
-          echo "📦 Installing packages..."
-          sudo apt install -y openssh-server curl python3 openssh-client autossh
-
-          echo "🎲 Generating login..."
-          USERNAME=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 10)
-          PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
-
-          echo "👤 Creating user..."
-          sudo useradd -m -s /bin/bash $USERNAME
-          echo "$USERNAME:$PASSWORD" | sudo chpasswd
-          sudo usermod -aG sudo $USERNAME
-
-          echo "🔐 Configuring SSH..."
-          sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
-          sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-          sudo sed -i 's/#GatewayPorts no/GatewayPorts yes/' /etc/ssh/sshd_config
-          sudo service ssh restart
-
-          echo "USERNAME=$USERNAME" >> $GITHUB_ENV
-          echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-
-      - name: 🔑 Generate SSH Key
-        run: |
+          echo "🔑 Generating SSH keys..."
           mkdir -p ~/.ssh
-          ssh-keygen -t rsa -b 4096 -f ~/.ssh/serveo_key -N "" -q
-          ssh-keyscan -H serveo.net >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "SSH key generated!"
+          ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
+          ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -q
 
-      - name: 🌐 Start Tunnel (serveo.net)
-        run: |
-          echo "🚇 Starting serveo.net tunnel..."
+          echo "🚇 Starting tmate..."
+          tmate -S /tmp/tmate.sock new-session -d
+          tmate -S /tmp/tmate.sock wait tmate-ready
 
-          SPORT=$((RANDOM % 50000 + 10000))
-          echo "🎲 Trying port: $SPORT"
-
-          autossh -M 0 \
-            -o StrictHostKeyChecking=no \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=3 \
-            -i ~/.ssh/serveo_key \
-            -R $SPORT:localhost:22 \
-            serveo.net > tunnel.log 2>&1 &
-
-          echo "⏳ Waiting for tunnel..."
-          SUCCESS=0
-          for i in {1..25}; do
-            sleep 4
-            if grep -q "forwarding" tunnel.log 2>/dev/null; then
-              SUCCESS=1
-              break
-            fi
-            if grep -q "Error" tunnel.log 2>/dev/null; then
-              echo "🔄 Port busy, retrying..."
-              kill %% 2>/dev/null || true
-              sleep 2
-              SPORT=$((RANDOM % 50000 + 10000))
-              autossh -M 0 \
-                -o StrictHostKeyChecking=no \
-                -o ServerAliveInterval=30 \
-                -i ~/.ssh/serveo_key \
-                -R $SPORT:localhost:22 \
-                serveo.net > tunnel.log 2>&1 &
-            fi
-            echo "⏳ Retry $i/25..."
-          done
+          SSH_CMD=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
+          WEB_URL=$(tmate -S /tmp/tmate.sock display -p '#{tmate_web}')
 
           echo ""
-          echo "--- Tunnel Log ---"
-          cat tunnel.log || true
-
-          echo "================================"
-          echo "✅ TUNNEL READY!"
-          echo "🌐 HOST : serveo.net"
-          echo "🔌 PORT : $SPORT"
-          echo "================================"
-          echo "SSH_PORT=$SPORT" >> $GITHUB_ENV
-
-      - name: 🔐 Login Details 😏
-        run: |
+          echo "╔════════════════════════════════════════════╗"
+          echo "║           🚀 VPS LOGIN DETAILS             ║"
+          echo "╠════════════════════════════════════════════╣"
+          echo "║ 💻 SSH CMD : $SSH_CMD"
+          echo "║ 🌐 WEB URL : $WEB_URL"
+          echo "╠════════════════════════════════════════════╣"
+          echo "║ 📋 Terminus Settings:"
+          HOST=$(echo $SSH_CMD | awk '{print $3}' | cut -d'@' -f2)
+          USER=$(echo $SSH_CMD | awk '{print $3}' | cut -d'@' -f1)
+          echo "║ 🌐 Host     : $HOST"
+          echo "║ 🔌 Port     : 22"
+          echo "║ 👤 Username : $USER"
+          echo "║ 🔑 Auth     : No password (key based)"
+          echo "╚════════════════════════════════════════════╝"
           echo ""
-          echo "╔══════════════════════════════╗"
-          echo "║       SSH LOGIN DETAILS      ║"
-          echo "╠══════════════════════════════╣"
-          echo "║ 🌐 HOST : serveo.net"
-          echo "║ 🔌 PORT : $SSH_PORT"
-          echo "║ 👤 USER : $USERNAME"
-          echo "║ 🔑 PASS : $PASSWORD"
-          echo "╠══════════════════════════════╣"
-          echo "║ 💻 COMMAND:"
-          echo "║ ssh $USERNAME@serveo.net -p $SSH_PORT"
-          echo "╚══════════════════════════════╝"
+          echo "📊 System Info:"
+          echo "🖥️  CPU  : $(nproc) cores"
+          echo "💾 RAM  : $(free -h | awk '/^Mem:/ {print $2}')"
+          echo "💿 DISK : $(df -h / | awk 'NR==2 {print $4}') free"
+          echo "🌍 IP   : $(curl -s ifconfig.me)"
 
       - name: ⏳ Keep Alive 😴
-        run: sleep 21600
+        run: |
+          echo "✅ Session active — will auto close after 6 hours"
+          sleep 21600
