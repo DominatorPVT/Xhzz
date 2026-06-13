@@ -14,64 +14,25 @@
 
 ## 📌 Overview
 
-**Action VPS** gives you a temporary Ubuntu environment running inside GitHub Actions or GitLab CI — with SSH access and a public ngrok tunnel (hostname + port).
+**Action VPS** gives you a temporary Ubuntu environment running inside GitHub Actions or GitLab CI — with SSH access via **localhost.run** tunnel (no token required!).
 
 > ⚠️ This is **not** a real VPS. It runs for ~6 hours per session and resets every time.
 
 ---
 
-## 🔑 Step 1 — Get Your Ngrok Token
+## ✅ Why localhost.run?
 
-1. Go to 👉 [https://ngrok.com](https://ngrok.com)
-2. Sign up / Log in (free account)
-3. Go to **Dashboard → Your Authtoken**
-4. Copy your token
-
-> It looks like: `2abc123XYZ_xxxxxxxxxxxxxxxxxxxxxxxx`
-
----
-
-## 🔐 Step 2 — Add Token to GitHub Secret
-
-1. Open your **forked repo** on GitHub
-2. Go to **Settings**
-
-```
-Settings → Secrets and variables → Actions → New repository secret
-```
-
-3. Fill in:
-
-```
-Name  : NGROK_TOKEN
-Value : (paste your ngrok authtoken here)
-```
-
-4. Click **Add secret** ✅
+| Feature | Details |
+|---|---|
+| 💰 Cost | 100% Free |
+| 🔑 Token needed | ❌ No token required |
+| 🌐 Tunnel type | SSH reverse tunnel |
+| ⚡ Speed | Fast & reliable |
+| 🔒 Secure | Encrypted SSH tunnel |
 
 ---
 
-## 🔐 Step 2 (GitLab) — Add Token to GitLab CI Variable
-
-1. Open your **GitLab project**
-2. Go to:
-
-```
-Settings → CI/CD → Variables → Add variable
-```
-
-3. Fill in:
-
-```
-Key   : NGROK_TOKEN
-Value : (paste your ngrok authtoken here)
-```
-
-4. Click **Add variable** ✅
-
----
-
-## 🚀 Step 3 — Run the VPS
+## 🚀 Quick Start
 
 ### GitHub Actions
 
@@ -94,9 +55,11 @@ Value : (paste your ngrok authtoken here)
 5. Find HOST, PORT, USERNAME, PASSWORD in logs
 ```
 
+> ✅ No secrets or tokens needed — just fork and run!
+
 ---
 
-## 🔌 Step 4 — Connect via SSH
+## 🔌 How to Connect via SSH
 
 Use any SSH client (**Terminus**, **JuiceSSH**, **PuTTY**, **Termux**).
 
@@ -121,7 +84,7 @@ ssh USERNAME@HOST -p PORT
 |---|---|
 | 🐧 OS | Ubuntu (latest) |
 | 🔐 SSH | Random username & password |
-| 🌐 Tunnel | ngrok (real hostname + port in logs) |
+| 🌐 Tunnel | localhost.run (no token needed!) |
 | ⏳ Duration | ~6 hours per session |
 | 🖐️ Start | Manual trigger only |
 
@@ -167,7 +130,7 @@ action-vps/
 - **Credentials change** on every run
 - Workflow must be **started manually** each time
 - All data is **lost** after session ends
-- ngrok free plan allows **1 tunnel** at a time
+- **No token needed** — localhost.run is free forever
 
 ---
 
