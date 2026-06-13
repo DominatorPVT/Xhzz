@@ -21,36 +21,41 @@ jobs:
           ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
           ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -q
 
-          echo "🚇 Starting tmate..."
+          echo "🎲 Generating password..."
+          TMATE_PASS=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
+          echo "TMATE_PASS=$TMATE_PASS" >> $GITHUB_ENV
+
+          echo "🚇 Starting tmate with password..."
           tmate -S /tmp/tmate.sock new-session -d
           tmate -S /tmp/tmate.sock wait tmate-ready
 
           SSH_CMD=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
           WEB_URL=$(tmate -S /tmp/tmate.sock display -p '#{tmate_web}')
 
+          HOST=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f2)
+          TOKEN=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f1)
+
+          # Set password on tmate session
+          tmate -S /tmp/tmate.sock send-keys "sudo passwd runner <<< $'$TMATE_PASS\n$TMATE_PASS'" Enter 2>/dev/null || true
+
           echo ""
           echo "╔════════════════════════════════════════════╗"
           echo "║           🚀 VPS LOGIN DETAILS             ║"
           echo "╠════════════════════════════════════════════╣"
-          echo "║ 💻 SSH CMD : $SSH_CMD"
-          echo "║ 🌐 WEB URL : $WEB_URL"
-          echo "╠════════════════════════════════════════════╣"
-          echo "║ 📋 Terminus Settings:"
-          HOST=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f2)
-          USER=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f1)
           echo "║ 🌐 Host     : $HOST"
           echo "║ 🔌 Port     : 22"
-          echo "║ 👤 Username : $USER"
-          echo "║ 🔑 Auth     : No password (key based)"
-          echo "╚════════════════════════════════════════════╝"
-          echo ""
+          echo "║ 👤 Username : $TOKEN"
+          echo "║ 🔑 Auth     : No password (key auto)"
+          echo "╠════════════════════════════════════════════╣"
+          echo "║ 🌐 WEB     : $WEB_URL"
+          echo "║ 💻 SSH CMD : $SSH_CMD"
+          echo "╠════════════════════════════════════════════╣"
           echo "📊 System Info:"
           echo "🖥️  CPU  : $(nproc) cores"
           echo "💾 RAM  : $(free -h | awk '/^Mem:/ {print $2}')"
           echo "💿 DISK : $(df -h / | awk 'NR==2 {print $4}') free"
           echo "🌍 IP   : $(curl -s ifconfig.me)"
+          echo "╚════════════════════════════════════════════╝"
 
       - name: ⏳ Keep Alive 😴
-        run: |
-          echo "✅ Session active — will auto close after 6 hours"
-          sleep 21600
+        run: sleep 21600
