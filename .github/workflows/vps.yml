@@ -36,8 +36,8 @@ jobs:
           echo "║ 🌐 WEB URL : $WEB_URL"
           echo "╠════════════════════════════════════════════╣"
           echo "║ 📋 Terminus Settings:"
-          HOST=$(echo $SSH_CMD | awk '{print $3}' | cut -d'@' -f2)
-          USER=$(echo $SSH_CMD | awk '{print $3}' | cut -d'@' -f1)
+          HOST=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f2)
+          USER=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f1)
           echo "║ 🌐 Host     : $HOST"
           echo "║ 🔌 Port     : 22"
           echo "║ 👤 Username : $USER"
