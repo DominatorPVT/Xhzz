@@ -1,0 +1,32 @@
+stages:
+  - vps
+
+vps:
+  stage: vps
+  image: ubuntu:latest
+  script:
+    - apt update
+    - apt install -y openssh-server curl neofetch
+
+    - USERNAME=$(tr -dc a-z0-9 </dev/urandom | head -c 10)
+    - PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10)
+
+    - useradd -m $USERNAME
+    - echo "$USERNAME:$PASSWORD" | chpasswd
+
+    - echo "neofetch" >> /home/$USERNAME/.bashrc
+
+    - sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    - service ssh start
+
+    - curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+    - chmod +x cloudflared
+
+    - ./cloudflared tunnel --url ssh://localhost:22 > tunnel.log 2>&1 &
+    - sleep 10
+    - cat tunnel.log
+
+    - echo "USERNAME: $USERNAME"
+    - echo "PASSWORD: $PASSWORD"
+
+    - sleep 21600
