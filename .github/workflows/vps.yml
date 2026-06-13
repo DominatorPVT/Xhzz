@@ -17,8 +17,8 @@ jobs:
           sudo apt install -y openssh-server curl python3 openssh-client autossh
 
           echo "🎲 Generating login..."
-          USERNAME=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 10 | head -n 1)
-          PASSWORD=$(cat /dev/urandom | tr -dc 'A-Za-z0-9' | fold -w 12 | head -n 1)
+          USERNAME=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 10)
+          PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
 
           echo "👤 Creating user..."
           sudo useradd -m -s /bin/bash $USERNAME
