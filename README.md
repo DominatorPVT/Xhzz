@@ -2,7 +2,7 @@
 
 # ⚡ Action VPS
 
-**Free temporary Ubuntu VPS via GitHub Actions**
+**Free temporary Ubuntu VPS via GitHub Actions & GitLab CI**
 
 [![Stars](https://img.shields.io/github/stars/DominatorStufs/action-vps?style=for-the-badge&color=yellow)](https://github.com/DominatorStufs)
 [![Forks](https://img.shields.io/github/forks/DominatorStufs/action-vps?style=for-the-badge&color=blue)](https://github.com/DominatorStufs)
@@ -14,7 +14,7 @@
 
 ## 📌 Overview
 
-**Action VPS** gives you a temporary Ubuntu environment running inside GitHub Actions — with SSH access, a public tunnel URL, and `neofetch` pre-installed.
+**Action VPS** gives you a temporary Ubuntu environment running inside GitHub Actions or GitLab CI — with SSH access and a public Cloudflare tunnel URL.
 
 > ⚠️ This is **not** a real VPS. It runs for ~6 hours per session and resets every time.
 
@@ -22,13 +22,24 @@
 
 ## 🚀 Quick Start
 
-```bash
+### GitHub Actions
+
+```
 1. Star ⭐ this repository
 2. Fork 🍴 this repository
 3. Open your forked repo → Actions tab
 4. Select "Action VPS" workflow
 5. Click "Run workflow" ▶️
 6. Check logs for SSH credentials & tunnel URL
+```
+
+### GitLab CI
+
+```
+1. Import/fork this repo on GitLab
+2. Go to CI/CD → Pipelines
+3. Click "Run pipeline"
+4. Check job logs for SSH credentials & tunnel URL
 ```
 
 ---
@@ -39,8 +50,7 @@
 |---|---|
 | 🐧 OS | Ubuntu (latest) |
 | 🔐 SSH | Random username & password (from logs) |
-| 🌐 Tunnel | Random public URL (changes every run) |
-| ⚡ Pre-installed | `neofetch` (auto-runs on start) |
+| 🌐 Tunnel | Cloudflare public URL (changes every run) |
 | ⏳ Duration | ~6 hours per session |
 | 🖐️ Start | Manual trigger only |
 
@@ -54,6 +64,7 @@
 |---|---|
 | Repository storage | Unlimited *(keep < 1 GB)* |
 | Actions storage | 500 MB |
+| Monthly reset | ❌ None |
 
 ### GitLab Free
 
@@ -62,6 +73,7 @@
 | Repository storage | 5 GB per namespace |
 | CI/CD Job artifacts | 1 GB |
 | Pipeline minutes | 400 min/month |
+| Monthly reset | ✅ Pipeline minutes reset monthly |
 
 ---
 
@@ -70,13 +82,11 @@
 Use any SSH client (e.g. **Terminus**, **JuiceSSH**, **PuTTY**).
 
 ```
-Host     → (from Actions logs)
+Host     → (tunnel URL from logs)
 Port     → 22
-Username → (from Actions logs)
-Password → (from Actions logs)
+Username → (from logs)
+Password → (from logs)
 ```
-
-> 💡 Tip: Run `neofetch` after connecting to verify your environment.
 
 ---
 
@@ -87,6 +97,7 @@ action-vps/
 ├── .github/
 │   └── workflows/
 │       └── vps.yml
+├── .gitlab-ci.yml
 └── README.md
 ```
 
@@ -119,7 +130,7 @@ If this project helped you, consider supporting:
 
 <div align="center">
 
-Made with 🚬 by **[Dominator](https://github.com/DominatorStufs)**
+Made with ❤️ by **[Dominator](https://github.com/DominatorStufs)**
 
 *If you find this useful — drop a ⭐ it means a lot!*
 
