@@ -8,7 +8,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🛠️ Setup & Start tmate
+      - name: 🛠️ Setup VPS
+        run: |
+          sudo apt update -y
+          sudo apt install -y openssh-server curl
+
+          echo "🎲 Generating credentials..."
+          PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
+
+          echo "👤 Setting runner password..."
+          echo "runner:$PASSWORD" | sudo chpasswd
+          sudo usermod -aG sudo runner
+
+          echo "🔐 Configuring SSH..."
+          sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+          sudo service ssh restart
+
+          echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
+
+      - name: 🌐 Install & Start tmate
         run: |
           echo "📦 Installing tmate..."
           curl -Lo tmate.tar.xz https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz
@@ -16,27 +36,17 @@ jobs:
           sudo mv tmate-2.4.0-static-linux-amd64/tmate /usr/bin/tmate
           rm -rf tmate.tar.xz tmate-2.4.0-static-linux-amd64
 
-          echo "🔑 Generating SSH keys..."
           mkdir -p ~/.ssh
           ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
           ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -q
 
-          echo "🎲 Generating password..."
-          TMATE_PASS=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
-          echo "TMATE_PASS=$TMATE_PASS" >> $GITHUB_ENV
-
-          echo "🚇 Starting tmate with password..."
           tmate -S /tmp/tmate.sock new-session -d
           tmate -S /tmp/tmate.sock wait tmate-ready
 
           SSH_CMD=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
           WEB_URL=$(tmate -S /tmp/tmate.sock display -p '#{tmate_web}')
-
           HOST=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f2)
           TOKEN=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f1)
-
-          # Set password on tmate session
-          tmate -S /tmp/tmate.sock send-keys "sudo passwd runner <<< $'$TMATE_PASS\n$TMATE_PASS'" Enter 2>/dev/null || true
 
           echo ""
           echo "╔════════════════════════════════════════════╗"
@@ -45,16 +55,20 @@ jobs:
           echo "║ 🌐 Host     : $HOST"
           echo "║ 🔌 Port     : 22"
           echo "║ 👤 Username : $TOKEN"
-          echo "║ 🔑 Auth     : No password (key auto)"
+          echo "║ 🔑 Password : (key based - no password)"
           echo "╠════════════════════════════════════════════╣"
-          echo "║ 🌐 WEB     : $WEB_URL"
-          echo "║ 💻 SSH CMD : $SSH_CMD"
+          echo "║ 🔴 After connecting — switch to runner:"
+          echo "║    Username : runner"
+          echo "║    Password : $PASSWORD"
+          echo "║    Command  : su - runner"
           echo "╠════════════════════════════════════════════╣"
-          echo "📊 System Info:"
-          echo "🖥️  CPU  : $(nproc) cores"
-          echo "💾 RAM  : $(free -h | awk '/^Mem:/ {print $2}')"
-          echo "💿 DISK : $(df -h / | awk 'NR==2 {print $4}') free"
-          echo "🌍 IP   : $(curl -s ifconfig.me)"
+          echo "║ 🌐 Web URL  : $WEB_URL"
+          echo "╠════════════════════════════════════════════╣"
+          echo "║ 📊 System Info:"
+          echo "║ 🖥️  CPU  : $(nproc) cores"
+          echo "║ 💾 RAM  : $(free -h | awk '/^Mem:/ {print $2}')"
+          echo "║ 💿 DISK : $(df -h / | awk 'NR==2 {print $4}') free"
+          echo "║ 🌍 IP   : $(curl -s ifconfig.me)"
           echo "╚════════════════════════════════════════════╝"
 
       - name: ⏳ Keep Alive 😴
