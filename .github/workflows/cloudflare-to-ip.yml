@@ -1,36 +1,41 @@
-name: Cloudflare VPS Quick Access
+name: 2) Cloudflare VPS Temporary Access
 
 on:
   workflow_dispatch:
 
 jobs:
-  access:
+  connect:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
-      - name: Install cloudflared
+      - name: Install cloudflared (manual)
         run: |
-          sudo apt update
-          sudo apt install -y cloudflared
+          echo "⬇️ Installing cloudflared..."
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin/
+          cloudflared --version
 
-      - name: Run VPS Commands
+      - name: Connect to VPS via Cloudflare
         run: |
           echo "🚀 Connecting to VPS..."
 
           cloudflared access ssh --hostname rover-frequency-load-formal.trycloudflare.com << 'EOF'
-          echo "✅ Connected"
+          echo "✅ Connected Successfully"
           echo "👤 User:"
           whoami
-          echo "🌐 Host:"
+          echo "💻 Host:"
           hostname
-          echo "📊 System Info:"
+          echo "⏳ Uptime:"
           uptime
+          echo "💾 Disk:"
           df -h
+          echo "🧠 RAM:"
           free -m
           EOF
 
-      - name: Keep Alive
+      - name: Keep Session Alive
         run: |
-          echo "⏳ Session live for 10 min"
-          sleep 600
+          echo "⏳ Session active for testing (15 min)..."
+          sleep 900
