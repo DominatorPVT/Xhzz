@@ -1,167 +1,132 @@
-<div align="center">
+# 🖥️ Free VPS using GitHub & GitLab Actions
 
-# ⚡ Action VPS
-
-**Free temporary Ubuntu VPS via GitHub Actions & GitLab CI**
-
-[![Stars](https://img.shields.io/github/stars/DominatorStufs/action-vps?style=for-the-badge&color=yellow)](https://github.com/DominatorStufs)
-[![Forks](https://img.shields.io/github/forks/DominatorStufs/action-vps?style=for-the-badge&color=blue)](https://github.com/DominatorStufs)
-[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
-
-</div>
+> A college project that turns CI/CD pipelines into a free Linux server using ngrok tunneling.
 
 ---
 
-## 📌 Overview
+## 📌 What is this?
 
-**Action VPS** gives you a free temporary Ubuntu shell via **tmate** — works 100% on GitHub Actions & GitLab CI. No tokens, no signup required!
-
-> ⚠️ Not a real VPS. Runs ~6 hours per session. All data lost after session ends.
-
----
-
-## ✅ Why tmate?
-
-| Feature | Details |
-|---|---|
-| 💰 Cost | 100% Free |
-| 🔑 Token needed | ❌ None |
-| 🌐 Access | SSH + Web browser |
-| ⚡ Works on GitHub Actions | ✅ Yes |
-| 🔒 Secure | Encrypted tunnel |
+GitHub aur GitLab dono free cloud runners dete hain jo Linux machine chalate hain.
+Is project me hum un machines ko **SSH-accessible VPS** ki tarah use karte hain — bilkul free! 🎉
 
 ---
 
-## 🚀 Quick Start
-
-### GitHub Actions
+## ⚙️ How it works
 
 ```
-1. Star ⭐ & Fork 🍴 this repo
-2. Go to Actions tab
-3. Select "Action VPS" workflow
-4. Click "Run workflow" ▶️
-5. Open logs → find SSH details
-```
-
-### GitLab CI
-
-```
-1. Fork/import this repo on GitLab
-2. Go to CI/CD → Pipelines
-3. Click "Run pipeline"
-4. Open job logs → find SSH details
+GitHub/GitLab Action trigger
+        ↓
+Ubuntu runner start hota hai
+        ↓
+SSH server install & configure
+        ↓
+ngrok se public tunnel banta hai
+        ↓
+IP + Port logs me dikhta hai
+        ↓
+Tum SSH se connect karo! 🚀
 ```
 
 ---
 
-## 🔌 How to Connect (Terminus)
+## 🚀 Setup Steps
 
-Logs mein yeh dikhega:
+### 1. ngrok Account banao
+- [ngrok.com](https://ngrok.com) pe free account banao
+- Dashboard se **Authtoken** copy karo
 
+### 2. GitHub me Secret add karo
 ```
-╔════════════════════════════════════════════╗
-║           🚀 VPS LOGIN DETAILS             ║
-╠════════════════════════════════════════════╣
-║ 💻 SSH CMD : ssh abc123@nyc1.tmate.io
-║ 🌐 WEB URL : https://tmate.io/t/abc123
-╠════════════════════════════════════════════╣
-║ 🌐 Host     : nyc1.tmate.io
-║ 🔌 Port     : 22
-║ 👤 Username : abc123
-║ 🔑 Auth     : No password (key based)
-╚════════════════════════════════════════════╝
+Settings → Secrets and variables → Actions → New secret
+
+Name  : NGROK_TOKEN
+Value : (apna ngrok token)
 ```
 
-**Terminus Settings:**
+### 3. GitLab me Variable add karo
 ```
-Host     → nyc1.tmate.io  (from logs)
-Port     → 22
-Username → abc123         (from logs)
-Auth     → No password needed
+Settings → CI/CD → Variables → Add variable
+
+Key   : NGROK_TOKEN
+Value : (apna ngrok token)
 ```
 
-**Ya seedha terminal mein:**
+### 4. Action/Pipeline manually trigger karo
+- GitHub: `Actions tab → Free VPS Server → Run workflow`
+- GitLab: `CI/CD → Pipelines → Run Pipeline`
+
+---
+
+## 📋 Credentials
+
+| Field    | Value              |
+|----------|--------------------|
+| Username | `vpsuser`          |
+| Password | `Vps@2024#Secure`  |
+
+SSH command logs me dikhega — kuch aisa:
 ```bash
-ssh abc123@nyc1.tmate.io
+ssh -p 12345 vpsuser@0.tcp.ngrok.io
 ```
 
 ---
 
-## 📦 Features
+## ⏰ Session Time
 
-| Feature | Details |
-|---|---|
-| 🐧 OS | Ubuntu (latest) |
-| 🌐 Tunnel | tmate (100% working) |
-| 🖥️ CPU | 2 cores |
-| 💾 RAM | ~7 GB |
-| 💿 Disk | ~30 GB |
-| ⏳ Duration | ~6 hours |
-| 🔄 New session | New details every run |
+| Platform | Free Time     |
+|----------|---------------|
+| GitHub   | ~5 hours 50 min |
+| GitLab   | ~5 hours 50 min |
+
+> Jab chahiye tab manually trigger karo — automatic kuch nahi hoga! 😄
 
 ---
 
-## 💾 Storage Limits
-
-### GitHub Free
-
-| Type | Limit |
-|---|---|
-| Repository storage | Unlimited *(keep < 1 GB)* |
-| Actions storage | 500 MB |
-| Monthly reset | ❌ None |
-
-### GitLab Free
-
-| Type | Limit |
-|---|---|
-| Repository storage | 5 GB |
-| CI/CD artifacts | 1 GB |
-| Pipeline minutes | 400 min/month |
-
----
-
-## 📂 Project Structure
+## 📁 Project Structure
 
 ```
-action-vps/
+free-vps/
 ├── .github/
 │   └── workflows/
-│       └── vps.yml
-├── .gitlab-ci.yml
-└── README.md
+│       └── vps.yml        # GitHub Actions workflow
+├── .gitlab-ci.yml         # GitLab CI pipeline
+└── README.md              # Yeh file 😄
 ```
 
 ---
 
-## ⚠️ Important Notes
+## ⚠️ Limitations
 
-- Session lasts **~6 hours** only
-- **New SSH details every run**
-- Manual start required every time
-- All data lost after session ends
-
----
-
-## 💖 Support
-
-<div align="center">
-
-**UPI** → `dpdangergameryt@oksbi`
-
-**Telegram** → [@DOMINATOR_XYZ](https://t.me/DOMINATOR_XYZ)
-
-**GitHub** → [DominatorStufs](https://github.com/DominatorStufs)
-
-</div>
+- Session ~6 hours max hoti hai (CI/CD limit)
+- ngrok free me sirf 1 tunnel allowed hai
+- GitLab me shared runners ke liye card verify karna padta hai
+- Data persist nahi hota (session end = sab reset)
 
 ---
 
-<div align="center">
+## 💡 Use Cases (College Project Ideas)
 
-Made with ❤️ by **[Dominator](https://github.com/DominatorStufs)**
+- Host a Node.js / Python web app temporarily
+- Run scripts on a Linux environment
+- Test server-side code without buying VPS
+- Learn Linux commands hands-on
 
-*If you find this useful — drop a ⭐ it means a lot!*
+---
 
-</div>
+## 🧑‍💻 Tech Used
+
+- **GitHub Actions** — CI/CD runner
+- **GitLab CI** — alternate CI/CD runner  
+- **Ubuntu 22.04** — runner OS
+- **OpenSSH** — SSH server
+- **ngrok** — TCP tunnel for public access
+
+---
+
+## 📜 License
+
+MIT License — free to use, modify, share! 🤝
+
+---
+
+*Made with curiosity and GitHub's free compute 😎*
