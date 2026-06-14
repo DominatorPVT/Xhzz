@@ -25,9 +25,8 @@
 | Feature | Details |
 |---|---|
 | 💰 Cost | 100% Free |
-| 🔑 Token needed | ❌ None |
 | 🌐 Access | SSH via Termux |
-| ⚡ Works on GitHub Actions | ✅ Yes |
+| ⚡ Works on GitHub Actionn |
 | 🔒 Secure | Encrypted by Cloudflare |
 
 ---
@@ -93,6 +92,15 @@ vps@2026xyz
 
 > Copy the URL from action logs every time! 🥀
 
+### ✅ Pre-installed Tools:
+```bash
+# System info
+neofetch
+
+# Terminal multiplexer
+tmux
+```
+
 ---
 
 ## 📦 Features
@@ -100,7 +108,7 @@ vps@2026xyz
 | Feature | Details |
 |---|---|
 | 🐧 OS | Ubuntu (latest) |
-| 🌐 Tunnel | Cloudflare (100% free) |
+| 🌐 Tunnel | Cloudflare |
 | 🖥️ CPU | 2 cores |
 | 💾 RAM | ~7 GB |
 | 💿 Disk | ~30 GB |
@@ -117,7 +125,6 @@ vps@2026xyz
 |---|---|
 | Repository storage | Unlimited *(keep < 1 GB)* |
 | Actions storage | 500 MB |
-| Monthly reset | ❌ None |
 
 ### GitLab Free
 
@@ -158,7 +165,7 @@ action-vps/
 
 **UPI** → `dpdangergameryt@oksbi`
 
-**Telegram** → [@DOMINATOR_XYZ](https://t.me/DOMINATOR_XYZ)
+**Telegram** → [Mãrlbörõ Çlôve 🥀🚬](https://t.me/DOMINATOR_XYZ)
 
 **GitHub** → [DominatorStufs](https://github.com/DominatorStufs)
 
@@ -168,7 +175,7 @@ action-vps/
 
 <div align="center">
 
-Made with ❤️ by **[Dominator](https://github.com/DominatorStufs)**
+Made with 🚬 by **[Dominator](https://github.com/DominatorStufs)**
 
 *If you find this useful — drop a ⭐ it means a lot!*
 
