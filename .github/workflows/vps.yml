@@ -12,7 +12,7 @@ jobs:
       - name: 🔧 System Setup
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y openssh-server curl wget net-tools
+          sudo apt-get install -y openssh-server curl
 
       - name: 👤 Create User
         run: |
@@ -29,27 +29,28 @@ jobs:
           echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
           sudo service ssh start || sudo systemctl start ssh
 
-      - name: 🌐 Setup Zrok Tunnel
+      - name: 🌐 Cloudflare Tunnel
         run: |
-          wget -q https://github.com/openziti/zrok/releases/latest/download/zrok_linux_amd64.tar.gz
-          tar -xzf zrok_linux_amd64.tar.gz
-          chmod +x zrok
-          sudo mv zrok /usr/local/bin/
-          zrok enable ${{ secrets.ZROK_TOKEN }}
-          zrok share public localhost:22 --backend-mode tcpTunnel > /tmp/zrok.log 2>&1 &
-          sleep 12
-          ZROK_ADDR=$(grep -oP '[a-z0-9]+\.share\.zrok\.io:\d+' /tmp/zrok.log | head -1)
-          HOST=$(echo $ZROK_ADDR | cut -d: -f1)
-          PORT=$(echo $ZROK_ADDR | cut -d: -f2)
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin/
+
+          # tunnel start
+          cloudflared tunnel --url ssh://localhost:22 > /tmp/cf.log 2>&1 &
+          sleep 10
+
+          # URL nikalo
+          CF_URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.trycloudflare\.com' /tmp/cf.log | head -1)
+
           echo "╔════════════════════════════════════════════╗"
           echo "║           🚀 VPS LOGIN DETAILS             ║"
           echo "╠════════════════════════════════════════════╣"
-          echo "║ 💻 SSH CMD : ssh -p $PORT vpsuser@$HOST"
-          echo "╠════════════════════════════════════════════╣"
-          echo "║ 🌐 Host     : $HOST"
-          echo "║ 🔌 Port     : $PORT"
+          echo "║ 🌐 URL      : $CF_URL"
           echo "║ 👤 Username : vpsuser"
           echo "║ 🔑 Password : Vps@2024#Secure"
+          echo "╠════════════════════════════════════════════╣"
+          echo "║ 💻 SSH CMD:"
+          echo "║ ssh -o ProxyCommand='cloudflared access ssh --hostname $CF_URL' vpsuser@$CF_URL"
           echo "╚════════════════════════════════════════════╝"
 
       - name: ⏳ Keep Alive
