@@ -8,47 +8,38 @@ free-vps:
 
   script:
     - apt-get update -qq
-    - apt-get install -y openssh-server curl wget python3 net-tools sudo
+    - apt-get install -y openssh-server curl sudo
 
-    # User banana
     - useradd -m -s /bin/bash vpsuser || true
     - echo "vpsuser:Vps@2024#Secure" | chpasswd
     - echo "vpsuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-    # SSH config
     - mkdir -p /run/sshd
-    - sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
     - echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
     - echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
     - /usr/sbin/sshd
 
-    # ngrok setup
-    - wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-    - tar -xzf ngrok-v3-stable-linux-amd64.tgz
-    - chmod +x ngrok
-    - ./ngrok config add-authtoken $NGROK_TOKEN
-    - ./ngrok tcp 22 --log=stdout &
-    - sleep 8
+    - curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+    - chmod +x cloudflared
+    - mv cloudflared /usr/local/bin/
 
-    # IP nikalo
+    - cloudflared tunnel --url ssh://localhost:22 > /tmp/cf.log 2>&1 &
+    - sleep 10
+
     - |
-      python3 -c "
-      import urllib.request, json
-      data = json.loads(urllib.request.urlopen('http://localhost:4040/api/tunnels').read())
-      addr = data['tunnels'][0]['public_url'].replace('tcp://','')
-      host, port = addr.split(':')
-      print('='*45)
-      print('  🖥️  GITLAB FREE VPS READY!')
-      print('='*45)
-      print(f'  SSH  : ssh -p {port} vpsuser@{host}')
-      print(f'  User : vpsuser')
-      print(f'  Pass : Vps@2024#Secure')
-      print('  Time : ~5 hours 50 min')
-      print('='*45)
-      "
+      CF_URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.trycloudflare\.com' /tmp/cf.log | head -1)
+      echo "╔════════════════════════════════════════════╗"
+      echo "║           🚀 VPS LOGIN DETAILS             ║"
+      echo "╠════════════════════════════════════════════╣"
+      echo "║ 🌐 URL      : $CF_URL"
+      echo "║ 👤 Username : vpsuser"
+      echo "║ 🔑 Password : Vps@2024#Secure"
+      echo "╠════════════════════════════════════════════╣"
+      echo "║ 💻 SSH CMD:"
+      echo "║ ssh -o ProxyCommand='cloudflared access ssh --hostname $CF_URL' vpsuser@$CF_URL"
+      echo "╚════════════════════════════════════════════╝"
 
-    # Alive rakhna
     - sleep 20000
 
   only:
-    - web        # sirf manual trigger se chalega
+    - web
