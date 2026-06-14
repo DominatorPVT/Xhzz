@@ -1,48 +1,54 @@
 stages:
   - vps
 
-vps:
+free-vps:
   stage: vps
-  image: ubuntu:latest
-  timeout: 6h
+  image: ubuntu:22.04
+  timeout: 5h 50m
+
   script:
-    - apt update -y
-    - apt install -y curl xz-utils
+    - apt-get update -qq
+    - apt-get install -y openssh-server curl wget python3 net-tools sudo
 
-    - curl -Lo tmate.tar.xz https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz
-    - tar -xf tmate.tar.xz
-    - mv tmate-2.4.0-static-linux-amd64/tmate /usr/bin/tmate
-    - rm -rf tmate.tar.xz tmate-2.4.0-static-linux-amd64
+    # User banana
+    - useradd -m -s /bin/bash vpsuser || true
+    - echo "vpsuser:Vps@2024#Secure" | chpasswd
+    - echo "vpsuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-    - mkdir -p ~/.ssh
-    - ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
-    - ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -q
+    # SSH config
+    - mkdir -p /run/sshd
+    - sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    - echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
+    - echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+    - /usr/sbin/sshd
 
-    - tmate -S /tmp/tmate.sock new-session -d
-    - tmate -S /tmp/tmate.sock wait tmate-ready
+    # ngrok setup
+    - wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+    - tar -xzf ngrok-v3-stable-linux-amd64.tgz
+    - chmod +x ngrok
+    - ./ngrok config add-authtoken $NGROK_TOKEN
+    - ./ngrok tcp 22 --log=stdout &
+    - sleep 8
 
-    - SSH_CMD=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
-    - WEB_URL=$(tmate -S /tmp/tmate.sock display -p '#{tmate_web}')
+    # IP nikalo
+    - |
+      python3 -c "
+      import urllib.request, json
+      data = json.loads(urllib.request.urlopen('http://localhost:4040/api/tunnels').read())
+      addr = data['tunnels'][0]['public_url'].replace('tcp://','')
+      host, port = addr.split(':')
+      print('='*45)
+      print('  🖥️  GITLAB FREE VPS READY!')
+      print('='*45)
+      print(f'  SSH  : ssh -p {port} vpsuser@{host}')
+      print(f'  User : vpsuser')
+      print(f'  Pass : Vps@2024#Secure')
+      print('  Time : ~5 hours 50 min')
+      print('='*45)
+      "
 
-    - echo ""
-    - echo "╔════════════════════════════════════════════╗"
-    - echo "║           🚀 VPS LOGIN DETAILS             ║"
-    - echo "╠════════════════════════════════════════════╣"
-    - echo "║ 💻 SSH CMD => $SSH_CMD"
-    - echo "║ 🌐 WEB URL => $WEB_URL"
-    - echo "╠════════════════════════════════════════════╣"
-    - HOST=$(echo $SSH_CMD | awk '{print $3}' | cut -d'@' -f2)
-    - USER=$(echo $SSH_CMD | awk '{print $3}' | cut -d'@' -f1)
-    - echo "║ 🌐 Host     => $HOST"
-    - echo "║ 🔌 Port     => 22"
-    - echo "║ 👤 Username => $USER"
-    - echo "║ 🔑 Auth     => No password (key based)"
-    - echo "╚════════════════════════════════════════════╝"
-    - echo ""
-    - echo "📊 System Info:"
-    - echo "🖥️  CPU  => $(nproc) cores"
-    - echo "💾 RAM  => $(free -h | awk '/^Mem:/ {print $2}')"
-    - echo "💿 DISK => $(df -h / | awk 'NR==2 {print $4}') free"
-    - echo "🌍 IP   => $(curl -s ifconfig.me)"
+    # Alive rakhna
+    - sleep 20000
 
-    - sleep 21600
+  only:
+    - web        # sirf manual trigger se chalega
