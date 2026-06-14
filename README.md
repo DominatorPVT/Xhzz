@@ -26,7 +26,7 @@
 |---|---|
 | 💰 Cost | 100% Free |
 | 🔑 Token needed | ❌ None |
-| 🌐 Access | SSH via cloudflared |
+| 🌐 Access | SSH via Termux |
 | ⚡ Works on GitHub Actions | ✅ Yes |
 | 🔒 Secure | Encrypted by Cloudflare |
 
@@ -41,7 +41,7 @@
 2. Go to Actions tab
 3. Select "Action VPS" workflow
 4. Click "Run workflow" ▶️
-5. Open logs → find SSH details
+5. Open logs → copy SSH details
 ```
 
 ### GitLab CI
@@ -50,20 +50,16 @@
 1. Fork/import this repo on GitLab
 2. Go to CI/CD → Pipelines
 3. Click "Run pipeline"
-4. Open job logs → find SSH details
+4. Open job logs → copy SSH details
 ```
 
 ---
 
 ## 🔌 How to Connect
 
-First install cloudflared on your device:
-```bash
-# Download cloudflared
-https://github.com/cloudflare/cloudflared/releases/latest
-```
+> ⚠️ **Terminus will NOT work!** Use **Termux** only!
 
-You will see this in the logs:
+You will see this in logs:
 
 ```
 ╔════════════════════════════════════════════╗
@@ -71,18 +67,31 @@ You will see this in the logs:
 ╠════════════════════════════════════════════╣
 ║ 🌐 URL      : https://xxxx.trycloudflare.com
 ║ 👤 Username : vpsuser
-║ 🔑 Password : Vps@2024#Secure
+║ 🔑 Password : vps@2026xyz
 ╠════════════════════════════════════════════╣
-║ 💻 SSH CMD:
+║ 💻 Termux CMD:
 ║ ssh -o ProxyCommand='cloudflared access ssh
-║ --hostname URL' vpsuser@URL
+║ --hostname xxxx.trycloudflare.com'
+║ vpsuser@xxxx.trycloudflare.com
 ╚════════════════════════════════════════════╝
 ```
 
-**Connect via terminal:**
+### Step 1 — Install cloudflared in Termux:
 ```bash
-ssh -o ProxyCommand='cloudflared access ssh --hostname https://xxxx.trycloudflare.com' vpsuser@xxxx.trycloudflare.com
+pkg install cloudflared
 ```
+
+### Step 2 — Run SSH command in Termux:
+```bash
+ssh -o ProxyCommand="cloudflared access ssh --hostname xxxx.trycloudflare.com" vpsuser@xxxx.trycloudflare.com
+```
+
+### Step 3 — Enter password:
+```
+vps@2026xyz
+```
+
+> Copy the URL from action logs every time! 🥀
 
 ---
 
@@ -136,10 +145,10 @@ action-vps/
 ## ⚠️ Important Notes
 
 - Session lasts **~6 hours** only
-- **New URL every run**
+- **New URL every run** — copy from logs
 - Manual start required every time
-- All data is lost after session ends
-- Install `cloudflared` on your local machine to connect
+- All data lost after session ends
+- **Termux only** — Terminus not supported
 
 ---
 
