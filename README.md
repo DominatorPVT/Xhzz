@@ -14,21 +14,21 @@
 
 ## 📌 Overview
 
-**Action VPS** gives you a free temporary Ubuntu shell via **zrok** — works 100% on GitHub Actions & GitLab CI. Free account on [zrok.io](https://zrok.io) required!
+**Action VPS** gives you a free temporary Ubuntu shell via **Cloudflare Tunnel** — works 100% on GitHub Actions & GitLab CI. No token or signup required!
 
 > ⚠️ Not a real VPS. Runs ~6 hours per session. All data is lost after session ends.
 
 ---
 
-## ✅ Why zrok?
+## ✅ Why Cloudflare Tunnel?
 
 | Feature | Details |
 |---|---|
 | 💰 Cost | 100% Free |
-| 🔑 Token needed | ✅ Free signup on zrok.io |
-| 🌐 Access | SSH tunnel |
+| 🔑 Token needed | ❌ None |
+| 🌐 Access | SSH via cloudflared |
 | ⚡ Works on GitHub Actions | ✅ Yes |
-| 🔒 Secure | Encrypted tunnel |
+| 🔒 Secure | Encrypted by Cloudflare |
 
 ---
 
@@ -38,37 +38,30 @@
 
 ```
 1. Star ⭐ & Fork 🍴 this repo
-2. Add ZROK_TOKEN in repo Secrets
-3. Go to Actions tab
-4. Select "Action VPS" workflow
-5. Click "Run workflow" ▶️
-6. Open logs → find SSH details
+2. Go to Actions tab
+3. Select "Action VPS" workflow
+4. Click "Run workflow" ▶️
+5. Open logs → find SSH details
 ```
 
 ### GitLab CI
 
 ```
 1. Fork/import this repo on GitLab
-2. Add ZROK_TOKEN in CI/CD Variables
-3. Go to CI/CD → Pipelines
-4. Click "Run pipeline"
-5. Open job logs → find SSH details
-```
-
----
-
-## 🔑 zrok Setup
-
-```
-1. Create a free account at zrok.io
-2. Go to Dashboard → copy your Auth Token
-3. GitHub: Settings → Secrets → New secret → ZROK_TOKEN
-4. GitLab: Settings → CI/CD → Variables → ZROK_TOKEN
+2. Go to CI/CD → Pipelines
+3. Click "Run pipeline"
+4. Open job logs → find SSH details
 ```
 
 ---
 
 ## 🔌 How to Connect
+
+First install cloudflared on your device:
+```bash
+# Download cloudflared
+https://github.com/cloudflare/cloudflared/releases/latest
+```
 
 You will see this in the logs:
 
@@ -76,17 +69,19 @@ You will see this in the logs:
 ╔════════════════════════════════════════════╗
 ║           🚀 VPS LOGIN DETAILS             ║
 ╠════════════════════════════════════════════╣
-║ 🌐 Address  : abc123.share.zrok.io:PORT
-║ 👤 User     : vpsuser
-║ 🔑 Pass     : Vps@2024#Secure
+║ 🌐 URL      : https://xxxx.trycloudflare.com
+║ 👤 Username : vpsuser
+║ 🔑 Password : Vps@2024#Secure
 ╠════════════════════════════════════════════╣
-║ 💻 SSH CMD  : ssh -p PORT vpsuser@HOST
+║ 💻 SSH CMD:
+║ ssh -o ProxyCommand='cloudflared access ssh
+║ --hostname URL' vpsuser@URL
 ╚════════════════════════════════════════════╝
 ```
 
 **Connect via terminal:**
 ```bash
-ssh -p PORT vpsuser@abc123.share.zrok.io
+ssh -o ProxyCommand='cloudflared access ssh --hostname https://xxxx.trycloudflare.com' vpsuser@xxxx.trycloudflare.com
 ```
 
 ---
@@ -96,12 +91,12 @@ ssh -p PORT vpsuser@abc123.share.zrok.io
 | Feature | Details |
 |---|---|
 | 🐧 OS | Ubuntu (latest) |
-| 🌐 Tunnel | zrok.io (100% free) |
+| 🌐 Tunnel | Cloudflare (100% free) |
 | 🖥️ CPU | 2 cores |
 | 💾 RAM | ~7 GB |
 | 💿 Disk | ~30 GB |
 | ⏳ Duration | ~6 hours |
-| 🔄 New session | New details every run |
+| 🔄 New session | New URL every run |
 
 ---
 
@@ -141,9 +136,10 @@ action-vps/
 ## ⚠️ Important Notes
 
 - Session lasts **~6 hours** only
-- **New SSH details every run**
+- **New URL every run**
 - Manual start required every time
 - All data is lost after session ends
+- Install `cloudflared` on your local machine to connect
 
 ---
 
