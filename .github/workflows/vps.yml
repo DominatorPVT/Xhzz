@@ -1,9 +1,7 @@
-name: 🖥️ Free VPS Server
+name: 🖥️ Action VPS
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 */5 * * *'   # har 5 ghante auto restart
 
 jobs:
   vps:
@@ -16,7 +14,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y openssh-server curl wget net-tools
 
-      - name: 👤 Create VPS User
+      - name: 👤 Create User
         run: |
           sudo useradd -m -s /bin/bash vpsuser
           echo "vpsuser:Vps@2024#Secure" | sudo chpasswd
@@ -25,53 +23,34 @@ jobs:
 
       - name: 🔐 Configure SSH
         run: |
-          sudo mkdir -p /etc/ssh
           sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-          sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
           echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
           echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
           sudo service ssh start || sudo systemctl start ssh
 
-      - name: 🌐 Get Public IP via ngrok
+      - name: 🌐 Setup Zrok Tunnel
         run: |
-          # ngrok download
-          wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-          tar -xzf ngrok-v3-stable-linux-amd64.tgz
-          chmod +x ngrok
-
-          # ngrok auth token (apna token daalo GitHub Secret me)
-          ./ngrok config add-authtoken ${{ secrets.NGROK_TOKEN }}
-
-          # SSH tunnel start
-          ./ngrok tcp 22 --log=stdout &
-          sleep 8
-
-          # IP + Port nikalo
-          TUNNEL=$(curl -s http://localhost:4040/api/tunnels | python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          addr = data['tunnels'][0]['public_url'].replace('tcp://', '')
-          host, port = addr.split(':')
-          print(f'HOST={host}')
-          print(f'PORT={port}')
-          ")
-
-          echo "========================================" 
-          echo "  🖥️  FREE VPS READY!  "
-          echo "========================================"
-          eval $TUNNEL
-          echo ""
-          echo "  🌐 SSH Command:"
-          echo "  ssh -p $PORT vpsuser@$HOST"
-          echo ""
-          echo "  👤 Username : vpsuser"
-          echo "  🔑 Password : Vps@2024#Secure"
-          echo ""
-          echo "  ⏰ Session Time: ~5 hours"
-          echo "========================================"
+          wget -q https://github.com/openziti/zrok/releases/latest/download/zrok_linux_amd64.tar.gz
+          tar -xzf zrok_linux_amd64.tar.gz
+          chmod +x zrok
+          sudo mv zrok /usr/local/bin/
+          zrok enable ${{ secrets.ZROK_TOKEN }}
+          zrok share public localhost:22 --backend-mode tcpTunnel > /tmp/zrok.log 2>&1 &
+          sleep 12
+          ZROK_ADDR=$(grep -oP '[a-z0-9]+\.share\.zrok\.io:\d+' /tmp/zrok.log | head -1)
+          HOST=$(echo $ZROK_ADDR | cut -d: -f1)
+          PORT=$(echo $ZROK_ADDR | cut -d: -f2)
+          echo "╔════════════════════════════════════════════╗"
+          echo "║           🚀 VPS LOGIN DETAILS             ║"
+          echo "╠════════════════════════════════════════════╣"
+          echo "║ 💻 SSH CMD : ssh -p $PORT vpsuser@$HOST"
+          echo "╠════════════════════════════════════════════╣"
+          echo "║ 🌐 Host     : $HOST"
+          echo "║ 🔌 Port     : $PORT"
+          echo "║ 👤 Username : vpsuser"
+          echo "║ 🔑 Password : Vps@2024#Secure"
+          echo "╚════════════════════════════════════════════╝"
 
       - name: ⏳ Keep Alive
-        run: |
-          echo "VPS is running... 🚀"
-          sleep 18000
+        run: sleep 18000
