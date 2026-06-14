@@ -1,0 +1,36 @@
+name: Cloudflare VPS Quick Access
+
+on:
+  workflow_dispatch:
+
+jobs:
+  access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Install cloudflared
+        run: |
+          sudo apt update
+          sudo apt install -y cloudflared
+
+      - name: Run VPS Commands
+        run: |
+          echo "🚀 Connecting to VPS..."
+
+          cloudflared access ssh --hostname rover-frequency-load-formal.trycloudflare.com << 'EOF'
+          echo "✅ Connected"
+          echo "👤 User:"
+          whoami
+          echo "🌐 Host:"
+          hostname
+          echo "📊 System Info:"
+          uptime
+          df -h
+          free -m
+          EOF
+
+      - name: Keep Alive
+        run: |
+          echo "⏳ Session live for 10 min"
+          sleep 600
