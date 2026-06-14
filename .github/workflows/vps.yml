@@ -12,12 +12,12 @@ jobs:
       - name: 🔧 System Setup
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y openssh-server curl wget net-tools
+          sudo apt-get install -y openssh-server curl wget net-tools neofetch tmux tmux
 
       - name: 👤 Create User
         run: |
           sudo useradd -m -s /bin/bash vpsuser
-          echo "vpsuser:Vps@2024#Secure" | sudo chpasswd
+          echo "vpsuser:vps@2026xyz" | sudo chpasswd
           sudo usermod -aG sudo vpsuser
           echo "vpsuser ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/vpsuser
 
@@ -45,9 +45,9 @@ jobs:
           echo "╠════════════════════════════════════════════╣"
           echo "║ 🌐 URL      : $CF_URL"
           echo "║ 👤 Username : vpsuser"
-          echo "║ 🔑 Password : Vps@2024#Secure"
+          echo "║ 🔑 Password : vps@2026xyz"
           echo "╠════════════════════════════════════════════╣"
-          echo "║ 💻 SSH CMD:"
+          echo "║ 💻 Termux CMD:"
           echo "║ ssh -o ProxyCommand='cloudflared access ssh --hostname $HOST' vpsuser@$HOST"
           echo "╚════════════════════════════════════════════╝"
 
