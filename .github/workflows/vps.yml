@@ -9,10 +9,10 @@ jobs:
     timeout-minutes: 350
 
     steps:
-      - name: 🔧 System Setup
+      - name: 🔧 Install tmate
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y openssh-server curl
+          sudo apt-get install -y tmate
 
       - name: 👤 Create User
         run: |
@@ -21,36 +21,26 @@ jobs:
           sudo usermod -aG sudo vpsuser
           echo "vpsuser ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/vpsuser
 
-      - name: 🔐 Configure SSH
+      - name: 🚀 Start tmate Session
         run: |
-          sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
-          sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
-          echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
-          sudo service ssh start || sudo systemctl start ssh
+          tmate -S /tmp/tmate.sock new-session -d
+          tmate -S /tmp/tmate.sock wait tmate-ready
 
-      - name: 🌐 Cloudflare Tunnel
-        run: |
-          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
-          chmod +x cloudflared
-          sudo mv cloudflared /usr/local/bin/
-
-          # tunnel start
-          cloudflared tunnel --url ssh://localhost:22 > /tmp/cf.log 2>&1 &
-          sleep 10
-
-          # URL nikalo
-          CF_URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.trycloudflare\.com' /tmp/cf.log | head -1)
+          SSH_CMD=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
+          HOST=$(echo $SSH_CMD | awk '{print $NF}' | cut -d@ -f2)
+          USER=$(echo $SSH_CMD | awk '{print $NF}' | cut -d@ -f1)
+          WEB=$(tmate -S /tmp/tmate.sock display -p '#{tmate_web}')
 
           echo "╔════════════════════════════════════════════╗"
           echo "║           🚀 VPS LOGIN DETAILS             ║"
           echo "╠════════════════════════════════════════════╣"
-          echo "║ 🌐 URL      : $CF_URL"
-          echo "║ 👤 Username : vpsuser"
+          echo "║ 🌐 Host     : $HOST"
+          echo "║ 🔌 Port     : 22"
+          echo "║ 👤 Username : $USER"
           echo "║ 🔑 Password : Vps@2024#Secure"
           echo "╠════════════════════════════════════════════╣"
-          echo "║ 💻 SSH CMD:"
-          echo "║ ssh -o ProxyCommand='cloudflared access ssh --hostname $CF_URL' vpsuser@$CF_URL"
+          echo "║ 🌐 Web URL  : $WEB"
+          echo "║ 💻 SSH CMD  : $SSH_CMD"
           echo "╚════════════════════════════════════════════╝"
 
       - name: ⏳ Keep Alive
