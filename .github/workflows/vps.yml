@@ -1,75 +1,77 @@
-name: 🚀 Action VPS 😈🔥
+name: 🖥️ Free VPS Server
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'   # har 5 ghante auto restart
 
 jobs:
   vps:
     runs-on: ubuntu-latest
+    timeout-minutes: 350
 
     steps:
-      - name: 🛠️ Setup VPS
+      - name: 🔧 System Setup
         run: |
-          sudo apt update -y
-          sudo apt install -y openssh-server curl
+          sudo apt-get update -qq
+          sudo apt-get install -y openssh-server curl wget net-tools
 
-          echo "🎲 Generating credentials..."
-          PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
+      - name: 👤 Create VPS User
+        run: |
+          sudo useradd -m -s /bin/bash vpsuser
+          echo "vpsuser:Vps@2024#Secure" | sudo chpasswd
+          sudo usermod -aG sudo vpsuser
+          echo "vpsuser ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/vpsuser
 
-          echo "👤 Setting runner password..."
-          echo "runner:$PASSWORD" | sudo chpasswd
-          sudo usermod -aG sudo runner
-
-          echo "🔐 Configuring SSH..."
+      - name: 🔐 Configure SSH
+        run: |
+          sudo mkdir -p /etc/ssh
           sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-          sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-          sudo service ssh restart
+          sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
+          echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
+          sudo service ssh start || sudo systemctl start ssh
 
-          echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-
-      - name: 🌐 Install & Start tmate
+      - name: 🌐 Get Public IP via ngrok
         run: |
-          echo "📦 Installing tmate..."
-          curl -Lo tmate.tar.xz https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz
-          tar -xf tmate.tar.xz
-          sudo mv tmate-2.4.0-static-linux-amd64/tmate /usr/bin/tmate
-          rm -rf tmate.tar.xz tmate-2.4.0-static-linux-amd64
+          # ngrok download
+          wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+          tar -xzf ngrok-v3-stable-linux-amd64.tgz
+          chmod +x ngrok
 
-          mkdir -p ~/.ssh
-          ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
-          ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -q
+          # ngrok auth token (apna token daalo GitHub Secret me)
+          ./ngrok config add-authtoken ${{ secrets.NGROK_TOKEN }}
 
-          tmate -S /tmp/tmate.sock new-session -d
-          tmate -S /tmp/tmate.sock wait tmate-ready
+          # SSH tunnel start
+          ./ngrok tcp 22 --log=stdout &
+          sleep 8
 
-          SSH_CMD=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
-          WEB_URL=$(tmate -S /tmp/tmate.sock display -p '#{tmate_web}')
-          HOST=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f2)
-          TOKEN=$(echo $SSH_CMD | awk '{print $2}' | cut -d'@' -f1)
+          # IP + Port nikalo
+          TUNNEL=$(curl -s http://localhost:4040/api/tunnels | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          addr = data['tunnels'][0]['public_url'].replace('tcp://', '')
+          host, port = addr.split(':')
+          print(f'HOST={host}')
+          print(f'PORT={port}')
+          ")
 
+          echo "========================================" 
+          echo "  🖥️  FREE VPS READY!  "
+          echo "========================================"
+          eval $TUNNEL
           echo ""
-          echo "╔════════════════════════════════════════════╗"
-          echo "║           🚀 VPS LOGIN DETAILS             ║"
-          echo "╠════════════════════════════════════════════╣"
-          echo "║ 🌐 Host     : $HOST"
-          echo "║ 🔌 Port     : 22"
-          echo "║ 👤 Username : $TOKEN"
-          echo "║ 🔑 Password : (key based - no password)"
-          echo "╠════════════════════════════════════════════╣"
-          echo "║ 🔴 After connecting — switch to runner:"
-          echo "║    Username : runner"
-          echo "║    Password : $PASSWORD"
-          echo "║    Command  : su - runner"
-          echo "╠════════════════════════════════════════════╣"
-          echo "║ 🌐 Web URL  : $WEB_URL"
-          echo "╠════════════════════════════════════════════╣"
-          echo "║ 📊 System Info:"
-          echo "║ 🖥️  CPU  : $(nproc) cores"
-          echo "║ 💾 RAM  : $(free -h | awk '/^Mem:/ {print $2}')"
-          echo "║ 💿 DISK : $(df -h / | awk 'NR==2 {print $4}') free"
-          echo "║ 🌍 IP   : $(curl -s ifconfig.me)"
-          echo "╚════════════════════════════════════════════╝"
+          echo "  🌐 SSH Command:"
+          echo "  ssh -p $PORT vpsuser@$HOST"
+          echo ""
+          echo "  👤 Username : vpsuser"
+          echo "  🔑 Password : Vps@2024#Secure"
+          echo ""
+          echo "  ⏰ Session Time: ~5 hours"
+          echo "========================================"
 
-      - name: ⏳ Keep Alive 😴
-        run: sleep 21600
+      - name: ⏳ Keep Alive
+        run: |
+          echo "VPS is running... 🚀"
+          sleep 18000
