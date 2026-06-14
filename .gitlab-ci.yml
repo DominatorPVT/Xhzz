@@ -8,10 +8,10 @@ free-vps:
 
   script:
     - apt-get update -qq
-    - apt-get install -y openssh-server curl sudo
+    - apt-get install -y openssh-server curl sudo neofetch tmux tmux
 
     - useradd -m -s /bin/bash vpsuser || true
-    - echo "vpsuser:Vps@2024#Secure" | chpasswd
+    - echo "vpsuser:vps@2026xyz" | chpasswd
     - echo "vpsuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
     - mkdir -p /run/sshd
@@ -22,21 +22,21 @@ free-vps:
     - curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
     - chmod +x cloudflared
     - mv cloudflared /usr/local/bin/
-
     - cloudflared tunnel --url ssh://localhost:22 > /tmp/cf.log 2>&1 &
     - sleep 10
 
     - |
       CF_URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.trycloudflare\.com' /tmp/cf.log | head -1)
+      HOST=$(echo $CF_URL | sed 's/https:\/\///')
       echo "╔════════════════════════════════════════════╗"
       echo "║           🚀 VPS LOGIN DETAILS             ║"
       echo "╠════════════════════════════════════════════╣"
       echo "║ 🌐 URL      : $CF_URL"
       echo "║ 👤 Username : vpsuser"
-      echo "║ 🔑 Password : Vps@2024#Secure"
+      echo "║ 🔑 Password : vps@2026xyz"
       echo "╠════════════════════════════════════════════╣"
-      echo "║ 💻 SSH CMD:"
-      echo "║ ssh -o ProxyCommand='cloudflared access ssh --hostname $CF_URL' vpsuser@$CF_URL"
+      echo "║ 💻 Termux CMD:"
+      echo "║ ssh -o ProxyCommand='cloudflared access ssh --hostname $HOST' vpsuser@$HOST"
       echo "╚════════════════════════════════════════════╝"
 
     - sleep 20000
