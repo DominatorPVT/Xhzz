@@ -8,17 +8,6 @@ variables:
       - "ubuntu"
       - "arch"
     description: "Choose the only Linux job to run in this web pipeline."
-  SSH_PUBLIC_KEY:
-    value: ""
-    description: "Arch only: paste one OpenSSH public key, never a private key."
-  DURATION_MINUTES:
-    value: "30"
-    options:
-      - "15"
-      - "30"
-      - "60"
-      - "120"
-    description: "Arch session duration in minutes, excluding setup time."
 
 stages:
   - session
