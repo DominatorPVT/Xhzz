@@ -108,11 +108,17 @@ arch:
       fi
       host=${url#https://}
       echo 'Arch Linux container ready; Quick Tunnel SSH transport is experimental.'
-      echo "Tunnel: $url"
-      echo 'WARNING: anyone who can read these logs can use the session password.'
-      echo 'User: vpsuser'
-      printf 'Password: %s\n' "$(cat /run/arch-session-password)"
+      echo "╔════════════════════════════════════════════╗"
+      echo "║            🚀 ARCH LOGIN DETAILS           ║"
+      echo "╠════════════════════════════════════════════╣"
+      echo "║ 🌐 URL      : $url"
+      echo "║ 👤 Username : vpsuser"
+      printf '║ 🔑 Password : %s\n' "$(cat /run/arch-session-password)"
+      echo "╠════════════════════════════════════════════╣"
+      echo "║ 💻 Termux CMD (copy the next line):"
+      # Keep the command unprefixed and on one line so it can be pasted directly.
       echo "ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ProxyCommand='cloudflared access ssh --hostname $host' vpsuser@$host"
+      echo "╚════════════════════════════════════════════╝"
       echo 'A tunnel URL does not prove end-to-end SSH connectivity. See README troubleshooting.'
       echo 'Session lasts up to 5 hours after setup. Cancel this run to stop earlier.'
 
