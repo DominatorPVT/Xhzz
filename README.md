@@ -19,12 +19,12 @@ The two GitHub workflows are **independent and manual-only**. Running Arch does 
 
 | Actions workflow | File | Environment | Login | Session duration |
 |---|---|---|---|---|
-| **🐧 Arch Linux Session** | `.github/workflows/arch-vps.yml` | `archlinux:base` container on an Ubuntu 24.04 runner | Fresh password printed in the run logs | Fixed 300-minute session after setup; job limit 350 minutes |
+| **🐧 Arch Linux Session** | `.github/workflows/arch-vps.yml` | `archlinux:base` container on an `ubuntu-latest` runner | Same fixed password as Ubuntu, printed in the logs | Fixed 300-minute session after setup; job limit 350 minutes |
 | **🖥️ Ubuntu Session** | `.github/workflows/ubuntu.yml` | GitHub's `ubuntu-latest` runner | Legacy fixed password | Keep-alive step: 300 minutes, plus setup time; job limit 350 minutes |
 
 **Arch is container-based**, not an Arch VM or an Arch host kernel. It provides Arch userspace and `pacman`; it shares the Ubuntu runner's kernel. A full systemd boot, custom kernel, and privileged hardware access are not provided.
 
-> **Password/log security warning:** Both environments print login credentials in CI logs. Anyone with access to those logs may be able to control the session; in a public repository the logs may be public. Use a private repository with restricted Actions/pipeline access, do not place sensitive data or CI secrets in these sessions, and cancel promptly when finished. A random password is not protection against log readers. Arch creates a fresh password per run, disables root SSH login, and grants the session user password-free sudo inside the container. The legacy Ubuntu jobs still use a fixed password and enable root SSH login; they are not a secure default.
+> **Password/log security warning:** Both environments print login credentials in CI logs. Anyone with access to those logs may be able to control the session; in a public repository the logs may be public. Use a private repository with restricted Actions/pipeline access, do not place sensitive data or CI secrets in these sessions, and cancel promptly when finished. Both environments now use the same fixed login (`vpsuser` / `vps@2026xyz`), which is public in the source and logs. Arch disables root SSH login and grants the session user password-free sudo inside the container. The legacy Ubuntu jobs still use a fixed password and enable root SSH login; they are not a secure default.
 
 ## Quick start: choose an environment and run
 
@@ -36,7 +36,7 @@ In GitHub Actions, select **🖥️ Ubuntu Session** or **🐧 Arch Linux Sessio
 
 Select the branch containing the workflow and click **Run workflow**. There is **no public-key input and no duration input**. You do not need to create an SSH key.
 
-Open the run logs for the tunnel hostname, username (`vpsuser`), password, and SSH command. For Arch, the **Configure password SSH** step prints the host-key fingerprint, and the final step prints connection details with a fresh password generated for that run. Ubuntu's legacy connection details are in **Cloudflare Tunnel**. Arch displays an **ARCH LOGIN DETAILS** box; copy only the unprefixed, single-line command below **Termux CMD**, paste it into Termux, then enter the password from the same box when prompted.
+Open the run logs for the tunnel hostname, username (`vpsuser`), password, and SSH command. For Arch, **🔐 Configure SSH** prints the host-key fingerprint and **🌐 Cloudflare Tunnel** prints the login details, using the same fixed password as Ubuntu. Ubuntu's legacy connection details are in **Cloudflare Tunnel**. Arch displays an **ARCH LOGIN DETAILS** box; copy only the unprefixed, single-line command below **Termux CMD**, paste it into Termux, then enter the password from the same box when prompted.
 
 There is no time selection: Arch uses a fixed five-hour session after setup, with a 350-minute overall job timeout. CI quotas or provider/runner limits can end a run earlier. Cancel the workflow to stop earlier.
 
@@ -59,7 +59,7 @@ ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no \
   vpsuser@YOUR-HOST.trycloudflare.com
 ```
 
-Replace both hostname placeholders. Enter the password printed in your current run when SSH prompts for it; nothing appears while you type. Do not reuse a password from an earlier Arch run. Compare the SSH host-key fingerprint with the one printed by your run before accepting it. Do not disable host-key checking.
+Replace both hostname placeholders. Enter the password printed in your current run when SSH prompts for it; nothing appears while you type. Compare the SSH host-key fingerprint with the one printed by your run before accepting it. Do not disable host-key checking.
 
 **This Quick Tunnel SSH path is experimental.** If it does not connect, see troubleshooting below; successful YAML validation is not a live connectivity test.
 
@@ -107,9 +107,9 @@ Only the selected job runs. Push and merge-request pipelines do not start a sess
 | Job | Configuration | Image | Authentication | Requested timeout |
 |---|---|---|---|---|
 | `ubuntu` | `.gitlab-ci.yml` | `ubuntu:22.04` | Legacy fixed password (see warning above) | 5 hours 50 minutes |
-| `arch` | `.gitlab/arch.yml` | `archlinux:base` | Fresh per-run password in logs; root SSH disabled | 5 hours 50 minutes |
+| `arch` | `.gitlab/arch.yml` | `archlinux:base` | Same fixed password as Ubuntu; root SSH disabled | 5 hours 50 minutes |
 
-Arch has the same tools, interactive Neofetch banner, automatic password generation, experimental tunnel, readiness timeout, and process monitoring as the GitHub Arch workflow. Use the SSH command and host-key fingerprint from the current run, as described in the GitHub connection instructions above.
+Arch uses the same five-step sequence as Ubuntu: **System Setup → Create User → Configure SSH → Cloudflare Tunnel → Keep Alive**. Both Arch CI configurations retain the installed tools, interactive Neofetch banner, experimental tunnel with a readiness timeout, and a fixed five-hour keep-alive. Ongoing process monitoring is not included in this simplified layout. Use the SSH command and host-key fingerprint from the current run, as described in the GitHub connection instructions above.
 
 Use an **amd64 Linux Docker/Kubernetes runner that supports the `image:` setting**, with permission to install packages as root inside the job container and outbound network access. A shell executor does not supply the requested container image. Project/runner timeouts and available CI minutes can stop jobs earlier than their requested timeout. Closing SSH does not stop the pipeline: cancel the job to stop it early.
 
