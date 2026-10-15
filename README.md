@@ -11,7 +11,57 @@
 
 > **Not a real VPS or a permanent hosting service.** Sessions use disposable CI environments. Check your provider's current acceptable-use rules, minutes allowance, billing settings, and job limits before running. Do not use CI runners for unrelated long-running hosting or to bypass usage limits.
 >
-> **Connection status:** The workflows attempt SSH through a Cloudflare Quick Tunnel. End-to-end SSH connectivity has not been verified for these configurations. A `trycloudflare.com` URL in the logs only confirms tunnel creation, not successful SSH access. Do not assume Quick Tunnels provide the same capabilities or access controls as a configured named tunnel with Cloudflare Access.
+> **Connection status:** User-provided Termux logs show a successful Arch SSH password login and interactive Neofetch output. Earlier attempts also showed DNS errors and a broken pipe, so this is not a reliability guarantee or verification of every GitHub/GitLab configuration. A `trycloudflare.com` URL in the logs only confirms tunnel creation, not successful SSH access. Do not assume Quick Tunnels provide the same capabilities or access controls as a configured named tunnel with Cloudflare Access.
+
+## Requirements
+
+### On your device
+
+| Requirement | Purpose |
+|---|---|
+| Termux on Android, or another terminal with a compatible SSH client | Run the connection command. Android root access is not required. |
+| **OpenSSH client** (`ssh`) | Connect to the remote Linux session. |
+| **cloudflared on the client device** | Run the SSH ProxyCommand. Installing it only in the CI runner is not enough. |
+| Working internet and DNS | Resolve and reach the current run's `trycloudflare.com` hostname. Network restrictions or an interrupted connection can break access. |
+| Access to the current workflow/pipeline logs | Copy the current hostname, login details, and command. Each new run can use a different hostname. |
+
+**Termux: install the required client packages once**
+
+```bash
+pkg update
+pkg install openssh cloudflared
+```
+
+**Check that both commands are available before connecting:**
+
+```bash
+command -v ssh
+command -v cloudflared
+ssh -V
+cloudflared --version
+```
+
+Both `command -v` checks should print a path, and the version commands should print their versions. If either command is missing, fix that installation before retrying SSH. `pkg` is a Termux command; desktop users should install OpenSSH and cloudflared using their platform's installation instructions.
+
+**Not required for this password-login setup:** an SSH key, `sshpass`, Android root, a local Arch installation, or Python/Node.js on your phone. Neofetch and tmux are installed in the remote session, not by the Termux client setup above. No Cloudflare account/token is configured for the experimental Quick Tunnel flow; a named tunnel/Access setup has different requirements.
+
+### On GitHub or GitLab
+
+| Platform | Requirements |
+|---|---|
+| GitHub Actions | A repository containing these workflow files, Actions enabled, permission to run the manual workflow and read its logs, and sufficient runner availability/CI allowance. A new workflow normally needs to exist on the default branch to be available for manual dispatch. |
+| GitLab CI | The root `.gitlab-ci.yml` **and** included `.gitlab/arch.yml`, permission to run web pipelines/read logs, available CI allowance, and an **amd64 Linux container runner** that supports `image:`. See [GitLab instructions](#gitlab-ci-select-ubuntu-or-arch). |
+| Job environment | Outbound access for distro package repositories, Neofetch/cloudflared downloads, and Cloudflare tunnel service connections. Arch jobs need root within their disposable container for package and SSH setup. |
+
+Prefer a private repository with restricted log access: the login credentials are public in this project's source and are printed in job logs. Never provide sensitive CI secrets or personal data to these sessions. Provider acceptable-use rules, quotas, and runner/job timeout settings still apply.
+
+## Latest connection updates
+
+- Ubuntu and Arch still start manually, without SSH-key or duration inputs.
+- Login commands now use `LogLevel=ERROR` to avoid routine debug chatter and retain SSH errors.
+- Client keep-alives run every 30 idle seconds with a limit of three unanswered checks. They do not fix a dead tunnel, DNS failure, or expired CI session.
+- Password entry remains manual; it is shown separately in the login box. Copy only the command after the decorative `║`, not the box border or Markdown links.
+- `send packet: type 98` is an SSH debug message, not a command or an Arch error. Use `neofetch`, not `neofetxh`.
 
 ## Choose which Linux environment to run
 
@@ -44,22 +94,26 @@ There is no time selection: Arch uses a fixed five-hour session after setup, wit
 
 You need an OpenSSH client and `cloudflared` installed **on the client device**, not just the CI runner. This is not inherently Termux-only: compatible Linux/macOS clients can also use an SSH ProxyCommand. Windows clients may need different installation and quoting. Specific GUI clients have not been verified.
 
-For Android Termux:
+Complete the [client requirements](#on-your-device) first. For Ubuntu or Arch, copy the command printed in **your current run**. Its shape is:
 
 ```bash
-pkg update
-pkg install openssh cloudflared
-```
-
-For Arch, copy the command printed in **your current run**. Its shape is:
-
-```bash
-ssh -o ProxyCommand='cloudflared access ssh --hostname YOUR-HOST.trycloudflare.com' vpsuser@YOUR-HOST.trycloudflare.com
+ssh -o LogLevel=ERROR -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ProxyCommand='cloudflared access ssh --hostname YOUR-HOST.trycloudflare.com' vpsuser@YOUR-HOST.trycloudflare.com
 ```
 
 Replace both hostname placeholders. Enter `vps@2026xyz` when SSH asks for the password; nothing appears while you type. Compare the host-key fingerprint with the Configure SSH logs before accepting a new host key. Do not disable host-key checking. The command is plain SSH, as in Ubuntu: `sshpass` is not needed and the password is displayed separately rather than embedded in the command.
 
 **This Quick Tunnel SSH path is experimental.** If it does not connect, see troubleshooting below; successful YAML validation is not a live connectivity test.
+
+### Normal terminal output and disconnects
+
+The printed command uses `LogLevel=ERROR` to suppress SSH diagnostic chatter while retaining errors. Do not add `-v`, `-vv`, or `-vvv` for everyday use. Those flags deliberately print protocol details mixed with your shell output. For a diagnostic session, remove `-o LogLevel=ERROR` and use `-vvv` only while collecting logs.
+
+- `Authenticated ... using "password"` followed by `[vpsuser@... ~]$` means login succeeded.
+- `send packet: type 98`, `window-change`, and `obfuscate_keystroke_timing` are debug messages, not commands or server failures. Never copy their numbers into the shell.
+- Run `neofetch`, not `neofetxh`. To redraw a cluttered terminal, use `clear` or Ctrl+L.
+- If already connected with `-vvv`, type `exit`, then reconnect with the current run's normal command (without the decorative `║`). If typing is difficult because logs keep appearing, press Enter and then type `~.` at the beginning of a fresh line to disconnect.
+- The command requests an SSH server response every 30 idle seconds and disconnects after three unanswered keep-alives. This can help detect a dead connection and may prevent some idle timeouts, but it cannot repair DNS failures, an expired hostname, a stopped CI job, or a failed Cloudflare tunnel.
+- A `Broken pipe` before authentication does not, by itself, identify a wrong password or a server bug. If it recurs, save the client diagnostics and the corresponding server/tunnel logs before restarting the run. A later successful login does not establish the cause of the earlier disconnect.
 
 ### 4. Use Arch tools
 
@@ -119,6 +173,9 @@ Use an **amd64 Linux Docker/Kubernetes runner that supports the `image:` setting
 | No tunnel URL | Arch waits ten seconds for a hostname, then fails with tunnel logs if none was found. Slow tunnel startup may require retrying the workflow. Check network/provider errors. |
 | URL exists but SSH fails | A generated URL is not an SSH health check. Quick Tunnel transport may not support this connection reliably. Consider a properly configured named tunnel with an SSH ingress service and Cloudflare Access, or another approved remote-debugging transport; neither is set up here. |
 | `cloudflared: command not found` on your device | Install cloudflared on the client and make sure it is in PATH. |
+| `no such host` / DNS lookup failure | Use the latest run's hostname without Markdown brackets or links. Confirm the workflow is still active and check the device's DNS/network. This error occurs before password authentication. |
+| `Broken pipe` / `UNKNOWN port 65535` | Inspect the client, tunnel, and SSH server logs for the same attempt. With a ProxyCommand, port 65535 in this error is not an instruction to open that port. A later successful login does not prove the cause of an earlier disconnect. |
+| Debug output such as `type 98` floods the shell | Reconnect without `-v`, `-vv`, or `-vvv` using the normal command. Do not type debug packet numbers into the remote shell. |
 | Password login fails | Use username `vpsuser` and the password from the current run. Copy the SSH command after the decorative `║` prefix; use the password shown separately in the box. |
 | Host-key warning | Every run creates new host keys. Verify the current fingerprint; do not blindly ignore a mismatch. |
 | Session stops early | Check workflow logs, cancellation, job timeout, CI quota, or a tunnel/SSH process exiting. |
