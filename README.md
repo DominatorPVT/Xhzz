@@ -36,7 +36,7 @@ In GitHub Actions, select **🖥️ Ubuntu Session** or **🐧 Arch Linux Sessio
 
 Select the branch containing the workflow and click **Run workflow**. There is **no public-key input and no duration input**. You do not need to create an SSH key.
 
-Open the run logs for the tunnel hostname, username (`vpsuser`), password, and SSH command. For Arch, **🔐 Configure SSH** prints the host-key fingerprint and **🌐 Cloudflare Tunnel** prints the login details, using the same fixed password as Ubuntu. Ubuntu's legacy connection details are in **Cloudflare Tunnel**. Arch displays an **ARCH LOGIN DETAILS** box; copy only the unprefixed, single-line command below **Termux CMD**, paste it into Termux, then enter the password from the same box when prompted.
+Open the run logs for the tunnel hostname, username (`vpsuser`), password, and SSH command. For Arch, **🔐 Configure SSH** prints the host-key fingerprint and **🌐 Cloudflare Tunnel** prints the login details, using the same fixed password as Ubuntu. Ubuntu's legacy connection details are in **Cloudflare Tunnel**. Arch displays an **ARCH LOGIN DETAILS** box in the same format as Ubuntu. Copy the command after the decorative `║` on the **Termux CMD** line, paste it into Termux, then enter the password from the box when SSH prompts.
 
 There is no time selection: Arch uses a fixed five-hour session after setup, with a 350-minute overall job timeout. CI quotas or provider/runner limits can end a run earlier. Cancel the workflow to stop earlier.
 
@@ -51,15 +51,13 @@ pkg update
 pkg install openssh cloudflared
 ```
 
-Copy the command printed in **your current run**. Its shape is:
+For Arch, copy the command printed in **your current run**. Its shape is:
 
 ```bash
-ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no \
-  -o ProxyCommand='cloudflared access ssh --hostname YOUR-HOST.trycloudflare.com' \
-  vpsuser@YOUR-HOST.trycloudflare.com
+ssh -o ProxyCommand='cloudflared access ssh --hostname YOUR-HOST.trycloudflare.com' vpsuser@YOUR-HOST.trycloudflare.com
 ```
 
-Replace both hostname placeholders. Enter the password printed in your current run when SSH prompts for it; nothing appears while you type. Compare the SSH host-key fingerprint with the one printed by your run before accepting it. Do not disable host-key checking.
+Replace both hostname placeholders. Enter `vps@2026xyz` when SSH asks for the password; nothing appears while you type. Compare the host-key fingerprint with the Configure SSH logs before accepting a new host key. Do not disable host-key checking. The command is plain SSH, as in Ubuntu: `sshpass` is not needed and the password is displayed separately rather than embedded in the command.
 
 **This Quick Tunnel SSH path is experimental.** If it does not connect, see troubleshooting below; successful YAML validation is not a live connectivity test.
 
@@ -109,7 +107,7 @@ Only the selected job runs. Push and merge-request pipelines do not start a sess
 | `ubuntu` | `.gitlab-ci.yml` | `ubuntu:22.04` | Legacy fixed password (see warning above) | 5 hours 50 minutes |
 | `arch` | `.gitlab/arch.yml` | `archlinux:base` | Same fixed password as Ubuntu; root SSH disabled | 5 hours 50 minutes |
 
-Arch uses the same five-step sequence as Ubuntu: **System Setup → Create User → Configure SSH → Cloudflare Tunnel → Keep Alive**. Both Arch CI configurations retain the installed tools, interactive Neofetch banner, experimental tunnel with a readiness timeout, and a fixed five-hour keep-alive. Ongoing process monitoring is not included in this simplified layout. Use the SSH command and host-key fingerprint from the current run, as described in the GitHub connection instructions above.
+Arch uses the same five-step sequence as Ubuntu: **System Setup → Create User → Configure SSH → Cloudflare Tunnel → Keep Alive**. Both Arch CI configurations retain the installed tools, interactive Neofetch banner, experimental tunnel with the same initial ten-second wait as Ubuntu and an explicit missing-URL check, and a fixed five-hour keep-alive. Ongoing process monitoring is not included in this simplified layout. Use the SSH command and host-key fingerprint from the current run, as described in the GitHub connection instructions above.
 
 Use an **amd64 Linux Docker/Kubernetes runner that supports the `image:` setting**, with permission to install packages as root inside the job container and outbound network access. A shell executor does not supply the requested container image. Project/runner timeouts and available CI minutes can stop jobs earlier than their requested timeout. Closing SSH does not stop the pipeline: cancel the job to stop it early.
 
@@ -118,10 +116,10 @@ Use an **amd64 Linux Docker/Kubernetes runner that supports the `image:` setting
 | Symptom | What to check |
 |---|---|
 | Arch workflow is missing | Ensure the selected repository/branch contains `.github/workflows/arch-vps.yml`, Actions is enabled, and you have permission to dispatch it. GitHub requires a manually dispatched workflow to exist on the default branch before it is normally available for manual runs. |
-| No tunnel URL | Arch waits up to 120 seconds for a hostname, then fails with tunnel logs. Check network/provider errors. |
+| No tunnel URL | Arch waits ten seconds for a hostname, then fails with tunnel logs if none was found. Slow tunnel startup may require retrying the workflow. Check network/provider errors. |
 | URL exists but SSH fails | A generated URL is not an SSH health check. Quick Tunnel transport may not support this connection reliably. Consider a properly configured named tunnel with an SSH ingress service and Cloudflare Access, or another approved remote-debugging transport; neither is set up here. |
 | `cloudflared: command not found` on your device | Install cloudflared on the client and make sure it is in PATH. |
-| Password login fails | Use username `vpsuser` and the password from the current run. Copy the printed SSH command, which explicitly selects password authentication for Arch. |
+| Password login fails | Use username `vpsuser` and the password from the current run. Copy the SSH command after the decorative `║` prefix; use the password shown separately in the box. |
 | Host-key warning | Every run creates new host keys. Verify the current fingerprint; do not blindly ignore a mismatch. |
 | Session stops early | Check workflow logs, cancellation, job timeout, CI quota, or a tunnel/SSH process exiting. |
 | Files disappear | CI filesystems are disposable. Copy needed files out before cancellation or timeout; there is no automatic persistence. |

@@ -67,20 +67,11 @@ arch:
         --output /usr/local/bin/cloudflared
       chmod +x /usr/local/bin/cloudflared
       cloudflared tunnel --url ssh://127.0.0.1:22 > /tmp/cf.log 2>&1 &
-      tunnel_pid=$!
+      sleep 10
 
-      CF_URL=''
-      for attempt in {1..60}; do
-        if ! kill -0 "$tunnel_pid" 2>/dev/null; then
-          cat /tmp/cf.log >&2
-          exit 1
-        fi
-        CF_URL=$(grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' /tmp/cf.log | head -1 || true)
-        [[ -n "$CF_URL" ]] && break
-        sleep 2
-      done
+      CF_URL=$(grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' /tmp/cf.log | head -1 || true)
       if [[ -z "$CF_URL" ]]; then
-        echo 'No tunnel URL received within 120 seconds.' >&2
+        echo 'No tunnel URL received after 10 seconds.' >&2
         cat /tmp/cf.log >&2
         exit 1
       fi
@@ -93,8 +84,8 @@ arch:
       echo "║ 👤 Username : vpsuser"
       echo "║ 🔑 Password : vps@2026xyz"
       echo "╠════════════════════════════════════════════╣"
-      echo "║ 💻 Termux CMD (copy the next line):"
-      echo "ssh -o ProxyCommand='cloudflared access ssh --hostname $HOST' -o PreferredAuthentications=password -o PubkeyAuthentication=no vpsuser@$HOST"
+      echo "║ 💻 Termux CMD:"
+      echo "║ ssh -o ProxyCommand='cloudflared access ssh --hostname $HOST' vpsuser@$HOST"
       echo "╚════════════════════════════════════════════╝"
 
       # ⏳ Keep Alive
