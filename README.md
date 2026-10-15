@@ -36,7 +36,7 @@ In GitHub Actions, select **🖥️ Ubuntu Session** or **🐧 Arch Linux Sessio
 
 Select the branch containing the workflow and click **Run workflow**. There is **no public-key input and no duration input**. You do not need to create an SSH key.
 
-Open the run logs for the tunnel hostname, username (`vpsuser`), password, and SSH command. For Arch, the **Configure password SSH** step prints the host-key fingerprint, and the final step prints connection details with a fresh password generated for that run. Ubuntu's legacy connection details are in **Cloudflare Tunnel**.
+Open the run logs for the tunnel hostname, username (`vpsuser`), password, and SSH command. For Arch, the **Configure password SSH** step prints the host-key fingerprint, and the final step prints connection details with a fresh password generated for that run. Ubuntu's legacy connection details are in **Cloudflare Tunnel**. Arch displays an **ARCH LOGIN DETAILS** box; copy only the unprefixed, single-line command below **Termux CMD**, paste it into Termux, then enter the password from the same box when prompted.
 
 There is no time selection: Arch uses a fixed five-hour session after setup, with a 350-minute overall job timeout. CI quotas or provider/runner limits can end a run earlier. Cancel the workflow to stop earlier.
 
