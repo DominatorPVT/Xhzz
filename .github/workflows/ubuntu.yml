@@ -1,10 +1,11 @@
-name: 🖥️ Action VPS
+name: 🖥️ Ubuntu Session
 
 on:
   workflow_dispatch:
 
 jobs:
-  vps:
+  ubuntu:
+    name: Temporary Ubuntu session
     runs-on: ubuntu-latest
     timeout-minutes: 350
 
@@ -12,7 +13,7 @@ jobs:
       - name: 🔧 System Setup
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y openssh-server curl wget net-tools neofetch tmux tmux
+          sudo apt-get install -y openssh-server curl wget net-tools neofetch tmux
 
       - name: 👤 Create User
         run: |
@@ -41,7 +42,7 @@ jobs:
           HOST=$(echo $CF_URL | sed 's/https:\/\///')
 
           echo "╔════════════════════════════════════════════╗"
-          echo "║           🚀 VPS LOGIN DETAILS             ║"
+          echo "║           🚀 UBUNTU LOGIN DETAILS             ║"
           echo "╠════════════════════════════════════════════╣"
           echo "║ 🌐 URL      : $CF_URL"
           echo "║ 👤 Username : vpsuser"

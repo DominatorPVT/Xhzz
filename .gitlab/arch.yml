@@ -1,0 +1,143 @@
+# Keep the script in sync with .github/workflows/arch-vps.yml (checked by tests).
+arch:
+  stage: session
+  image: archlinux:base
+  timeout: 2h 20m
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $LINUX_DISTRO == "arch"'
+  script:
+    - |
+      bash <<'ARCH_SESSION'
+      # Install Arch tools
+      set -euo pipefail
+      # Arch is rolling-release: perform a full upgrade, not a partial upgrade.
+      pacman -Syu --noconfirm --needed openssh curl wget net-tools sudo tmux
+      # Neofetch is archived; install a fixed upstream revision with a checksum.
+      curl --fail --location --retry 3 \
+        https://raw.githubusercontent.com/dylanaraps/neofetch/ccd5d9f52609bbdcd5d8fa78c4fdb0f12954125f/neofetch \
+        --output /tmp/neofetch
+      echo '2a272bbaa1275f21835fd3258fb8032ccdc98348e6ccb9cf58acacd366340170  /tmp/neofetch' | sha256sum --check
+      install -m 755 /tmp/neofetch /usr/local/bin/neofetch
+      rm -f /tmp/neofetch
+      bash -n /usr/local/bin/neofetch
+      curl --fail --location --retry 3 \
+        https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+        --output /usr/local/bin/cloudflared
+      chmod 755 /usr/local/bin/cloudflared
+      cloudflared --version
+      
+      # Configure key-only SSH
+      set -euo pipefail
+      useradd --create-home --shell /bin/bash vpsuser
+      # Unlock the account with an unknown random password; SSH passwords stay disabled.
+      password=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+      printf 'vpsuser:%s\n' "$password" | chpasswd
+      unset password
+      install -d -m 700 -o vpsuser -g vpsuser /home/vpsuser/.ssh
+      case "$SSH_PUBLIC_KEY" in
+        ssh-ed25519\ *|ssh-rsa\ *|ecdsa-sha2-*\ *|sk-*\ *) ;;
+        *) echo 'Expected an OpenSSH public key, not a private key.' >&2; exit 1 ;;
+      esac
+      printf '%s\n' "$SSH_PUBLIC_KEY" > /tmp/public-key
+      if [[ $(awk 'NF { n++ } END { print n+0 }' /tmp/public-key) != 1 ]]; then
+        echo 'Provide exactly one SSH public key.' >&2
+        exit 1
+      fi
+      ssh-keygen -lf /tmp/public-key
+      install -m 600 -o vpsuser -g vpsuser /tmp/public-key /home/vpsuser/.ssh/authorized_keys
+      rm -f /tmp/public-key
+      # Administrative access inside this disposable container only.
+      printf 'vpsuser ALL=(ALL:ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/vpsuser
+      chmod 440 /etc/sudoers.d/vpsuser
+      visudo -cf /etc/sudoers.d/vpsuser
+      ssh-keygen -A
+      mkdir -p /run/sshd
+      cat > /etc/ssh/sshd_config.session <<'CONFIG'
+      Port 22
+      ListenAddress 127.0.0.1
+      HostKey /etc/ssh/ssh_host_ed25519_key
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PubkeyAuthentication yes
+      AuthenticationMethods publickey
+      AuthorizedKeysFile .ssh/authorized_keys
+      AllowUsers vpsuser
+      AllowAgentForwarding no
+      X11Forwarding no
+      Subsystem sftp internal-sftp
+      CONFIG
+      /usr/sbin/sshd -t -f /etc/ssh/sshd_config.session
+      echo 'Session SSH host-key fingerprint (verify on your client):'
+      ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+      
+      # Configure Neofetch login banner
+      set -euo pipefail
+      # Bash reads .bash_profile for SSH login shells. Preserve Arch's defaults.
+      cat >> /home/vpsuser/.bash_profile <<'PROFILE'
+      
+      # Show system info only in interactive sessions, never scp/sftp/scripts.
+      if [[ $- == *i* ]] && [[ -t 1 ]]; then
+        if command -v neofetch >/dev/null 2>&1; then
+          neofetch || true
+        fi
+        printf '\nTemporary Arch container — files are deleted when the CI run ends.\n'
+        printf 'Commands: neofetch (system info), tmux (terminal sessions), pacman (packages).\n\n'
+      fi
+      PROFILE
+      chown vpsuser:vpsuser /home/vpsuser/.bash_profile
+      chmod 644 /home/vpsuser/.bash_profile
+      
+      # Start experimental SSH tunnel and keep session alive
+      set -euo pipefail
+      case "$DURATION_MINUTES" in
+        15|30|60|120) ;;
+        *) echo 'Unsupported duration.' >&2; exit 1 ;;
+      esac
+      
+      /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config.session > /tmp/sshd.log 2>&1 &
+      ssh_pid=$!
+      cloudflared tunnel --url ssh://127.0.0.1:22 > /tmp/cloudflared.log 2>&1 &
+      tunnel_pid=$!
+      cleanup() {
+        kill "$tunnel_pid" "$ssh_pid" 2>/dev/null || true
+        wait "$tunnel_pid" "$ssh_pid" 2>/dev/null || true
+      }
+      trap cleanup EXIT
+      trap 'exit 130' INT
+      trap 'exit 143' TERM
+      
+      url=''
+      for attempt in {1..60}; do
+        if ! kill -0 "$ssh_pid" 2>/dev/null || ! kill -0 "$tunnel_pid" 2>/dev/null; then
+          cat /tmp/sshd.log /tmp/cloudflared.log >&2
+          exit 1
+        fi
+        url=$(grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n 1 || true)
+        [[ -n "$url" ]] && break
+        sleep 2
+      done
+      if [[ -z "$url" ]]; then
+        echo 'No tunnel URL received within 120 seconds.' >&2
+        cat /tmp/cloudflared.log >&2
+        exit 1
+      fi
+      host=${url#https://}
+      echo 'Arch Linux container ready; Quick Tunnel SSH transport is experimental.'
+      echo "Tunnel: $url"
+      echo 'User: vpsuser (SSH key only; no login password)'
+      echo "ssh -i ~/.ssh/id_ed25519 -o ProxyCommand='cloudflared access ssh --hostname $host' vpsuser@$host"
+      echo 'A tunnel URL does not prove end-to-end SSH connectivity. See README troubleshooting.'
+      echo "Session ends in $DURATION_MINUTES minutes. Cancel this run to stop earlier."
+      
+      deadline=$((SECONDS + DURATION_MINUTES * 60))
+      while (( SECONDS < deadline )); do
+        if ! kill -0 "$ssh_pid" 2>/dev/null || ! kill -0 "$tunnel_pid" 2>/dev/null; then
+          echo 'SSH server or tunnel exited unexpectedly.' >&2
+          cat /tmp/sshd.log /tmp/cloudflared.log >&2
+          exit 1
+        fi
+        remaining=$((deadline - SECONDS))
+        sleep "$((remaining < 10 ? remaining : 10))"
+      done
+      ARCH_SESSION

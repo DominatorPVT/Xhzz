@@ -1,14 +1,36 @@
-stages:
-  - vps
+include:
+  - local: '/.gitlab/arch.yml'
 
-free-vps:
-  stage: vps
+variables:
+  LINUX_DISTRO:
+    value: "ubuntu"
+    options:
+      - "ubuntu"
+      - "arch"
+    description: "Choose the only Linux job to run in this web pipeline."
+  SSH_PUBLIC_KEY:
+    value: ""
+    description: "Arch only: paste one OpenSSH public key, never a private key."
+  DURATION_MINUTES:
+    value: "30"
+    options:
+      - "15"
+      - "30"
+      - "60"
+      - "120"
+    description: "Arch session duration in minutes, excluding setup time."
+
+stages:
+  - session
+
+ubuntu:
+  stage: session
   image: ubuntu:22.04
   timeout: 5h 50m
 
   script:
     - apt-get update -qq
-    - apt-get install -y openssh-server curl sudo neofetch tmux tmux
+    - apt-get install -y openssh-server curl wget net-tools sudo neofetch tmux
 
     - useradd -m -s /bin/bash vpsuser || true
     - echo "vpsuser:vps@2026xyz" | chpasswd
@@ -29,7 +51,7 @@ free-vps:
       CF_URL=$(grep -oP 'https://[a-zA-Z0-9\-]+\.trycloudflare\.com' /tmp/cf.log | head -1)
       HOST=$(echo $CF_URL | sed 's/https:\/\///')
       echo "╔════════════════════════════════════════════╗"
-      echo "║           🚀 VPS LOGIN DETAILS             ║"
+      echo "║           🚀 UBUNTU LOGIN DETAILS             ║"
       echo "╠════════════════════════════════════════════╣"
       echo "║ 🌐 URL      : $CF_URL"
       echo "║ 👤 Username : vpsuser"
@@ -41,5 +63,5 @@ free-vps:
 
     - sleep 20000
 
-  only:
-    - web
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $LINUX_DISTRO == "ubuntu"'
