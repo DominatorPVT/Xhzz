@@ -19,36 +19,26 @@ The two GitHub workflows are **independent and manual-only**. Running Arch does 
 
 | Actions workflow | File | Environment | Login | Session duration |
 |---|---|---|---|---|
-| **🐧 Arch Linux Session** | `.github/workflows/arch-vps.yml` | `archlinux:base` container on an Ubuntu 24.04 runner | Your SSH public key | Choose 15, 30, 60, or 120 minutes, plus setup time; job limit 140 minutes |
+| **🐧 Arch Linux Session** | `.github/workflows/arch-vps.yml` | `archlinux:base` container on an Ubuntu 24.04 runner | Fresh password printed in the run logs | Fixed 300-minute session after setup; job limit 350 minutes |
 | **🖥️ Ubuntu Session** | `.github/workflows/ubuntu.yml` | GitHub's `ubuntu-latest` runner | Legacy fixed password | Keep-alive step: 300 minutes, plus setup time; job limit 350 minutes |
 
 **Arch is container-based**, not an Arch VM or an Arch host kernel. It provides Arch userspace and `pacman`; it shares the Ubuntu runner's kernel. A full systemd boot, custom kernel, and privileged hardware access are not provided.
 
-> **Legacy security warning:** The existing Ubuntu configurations on GitHub and GitLab contain a fixed password, print it in logs, and enable root SSH login. They also grant the session user password-free sudo. Do not treat them as secure access configurations or use them with sensitive data. The new Arch workflow uses key-only SSH and disables root login; it still grants sudo **inside the disposable container**. Their legacy authentication has not been changed; only names and the preinstalled tool list were adjusted.
+> **Password/log security warning:** Both environments print login credentials in CI logs. Anyone with access to those logs may be able to control the session; in a public repository the logs may be public. Use a private repository with restricted Actions/pipeline access, do not place sensitive data or CI secrets in these sessions, and cancel promptly when finished. A random password is not protection against log readers. Arch creates a fresh password per run, disables root SSH login, and grants the session user password-free sudo inside the container. The legacy Ubuntu jobs still use a fixed password and enable root SSH login; they are not a secure default.
 
-## Quick start: Arch Linux on GitHub
+## Quick start: choose an environment and run
 
-### 1. Prepare your SSH key
+### 1. Select Ubuntu or Arch
 
-On your own device, use an existing SSH key or create one:
+In GitHub Actions, select **🖥️ Ubuntu Session** or **🐧 Arch Linux Session**. They are separate workflows; only the one you choose runs.
 
-```bash
-ssh-keygen -t ed25519
-cat ~/.ssh/id_ed25519.pub
-```
+### 2. Click Run workflow
 
-Keep your private key (`id_ed25519`) on your device. **Only the public key (`id_ed25519.pub`) belongs in the workflow input.** Never paste a private key into GitHub or logs.
+Select the branch containing the workflow and click **Run workflow**. There is **no public-key input and no duration input**. You do not need to create an SSH key.
 
-### 2. Start only the Arch workflow
+Open the run logs for the tunnel hostname, username (`vpsuser`), password, and SSH command. For Arch, the **Configure password SSH** step prints the host-key fingerprint, and the final step prints connection details with a fresh password generated for that run. Ubuntu's legacy connection details are in **Cloudflare Tunnel**.
 
-1. Fork this repository, or use your own copy with Actions enabled.
-2. Open **Actions → 🐧 Arch Linux Session → Run workflow**.
-3. Select the branch containing `arch-vps.yml`.
-4. Paste one complete, single-line OpenSSH public key into `ssh_public_key`.
-5. Choose `duration_minutes` and click **Run workflow**.
-6. Open the job logs. The configuration step prints the SSH host-key fingerprint; the final step prints the tunnel hostname and SSH command.
-
-No server login password is printed or required. If your private key has a passphrase, your local SSH client may ask for that passphrase.
+There is no time selection: Arch uses a fixed five-hour session after setup, with a 350-minute overall job timeout. CI quotas or provider/runner limits can end a run earlier. Cancel the workflow to stop earlier.
 
 ### 3. Connect from your device
 
@@ -64,12 +54,12 @@ pkg install openssh cloudflared
 Copy the command printed in **your current run**. Its shape is:
 
 ```bash
-ssh -i ~/.ssh/id_ed25519 \
+ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no \
   -o ProxyCommand='cloudflared access ssh --hostname YOUR-HOST.trycloudflare.com' \
   vpsuser@YOUR-HOST.trycloudflare.com
 ```
 
-Replace both hostname placeholders; change `-i` if your private key has a different path. Compare the SSH host-key fingerprint with the one printed by your run before accepting it. Do not disable host-key checking.
+Replace both hostname placeholders. Enter the password printed in your current run when SSH prompts for it; nothing appears while you type. Do not reuse a password from an earlier Arch run. Compare the SSH host-key fingerprint with the one printed by your run before accepting it. Do not disable host-key checking.
 
 **This Quick Tunnel SSH path is experimental.** If it does not connect, see troubleshooting below; successful YAML validation is not a live connectivity test.
 
@@ -93,7 +83,7 @@ Arch is rolling-release. The workflow performs a full `pacman -Syu` upgrade befo
 
 ### 5. End the session
 
-The session stops when the chosen time elapses. To stop earlier, use **Cancel workflow** in GitHub Actions. Closing your SSH client does not stop the workflow or its consumption of CI minutes. Save your work before the run ends: nothing is backed up automatically.
+The session stops automatically at its fixed session/job limit. To stop earlier, use **Cancel workflow** in GitHub Actions. Closing your SSH client does not stop the workflow or its consumption of CI minutes. Save your work before the run ends: nothing is backed up automatically.
 
 ## Ubuntu workflow (legacy password authentication)
 
@@ -110,17 +100,16 @@ The root `.gitlab-ci.yml` includes `.gitlab/arch.yml`. Import **both files** (or
 1. Open **Build / CI/CD → Pipelines → New pipeline / Run pipeline**.
 2. Choose the branch containing these files.
 3. Set **`LINUX_DISTRO`** to **`ubuntu`** or **`arch`** (default: `ubuntu`).
-4. For Arch, also set **`SSH_PUBLIC_KEY`** to one OpenSSH public key and **`DURATION_MINUTES`** to `15`, `30`, `60`, or `120` (default: `30`). Never supply a private key.
-5. Run the pipeline and open the selected **`ubuntu`** or **`arch`** job logs.
+4. Click **Run pipeline** and open the selected **`ubuntu`** or **`arch`** job logs for the password and SSH command. No public key or duration variable is needed.
 
 Only the selected job runs. Push and merge-request pipelines do not start a session. These jobs start when you submit a web pipeline; there is no second manual Play step. If your GitLab version does not show dropdowns, enter the same variable names and values manually.
 
 | Job | Configuration | Image | Authentication | Requested timeout |
 |---|---|---|---|---|
 | `ubuntu` | `.gitlab-ci.yml` | `ubuntu:22.04` | Legacy fixed password (see warning above) | 5 hours 50 minutes |
-| `arch` | `.gitlab/arch.yml` | `archlinux:base` | SSH key only; root SSH disabled | 2 hours 20 minutes |
+| `arch` | `.gitlab/arch.yml` | `archlinux:base` | Fresh per-run password in logs; root SSH disabled | 5 hours 50 minutes |
 
-Arch has the same tools, interactive Neofetch banner, key validation, experimental tunnel, readiness timeout, and process monitoring as the GitHub Arch workflow. Use the SSH command and host-key fingerprint from the current run, as described in the GitHub connection instructions above.
+Arch has the same tools, interactive Neofetch banner, automatic password generation, experimental tunnel, readiness timeout, and process monitoring as the GitHub Arch workflow. Use the SSH command and host-key fingerprint from the current run, as described in the GitHub connection instructions above.
 
 Use an **amd64 Linux Docker/Kubernetes runner that supports the `image:` setting**, with permission to install packages as root inside the job container and outbound network access. A shell executor does not supply the requested container image. Project/runner timeouts and available CI minutes can stop jobs earlier than their requested timeout. Closing SSH does not stop the pipeline: cancel the job to stop it early.
 
@@ -129,11 +118,10 @@ Use an **amd64 Linux Docker/Kubernetes runner that supports the `image:` setting
 | Symptom | What to check |
 |---|---|
 | Arch workflow is missing | Ensure the selected repository/branch contains `.github/workflows/arch-vps.yml`, Actions is enabled, and you have permission to dispatch it. GitHub requires a manually dispatched workflow to exist on the default branch before it is normally available for manual runs. |
-| Key validation fails | Paste one OpenSSH public key, not a private key or multiple keys. |
 | No tunnel URL | Arch waits up to 120 seconds for a hostname, then fails with tunnel logs. Check network/provider errors. |
 | URL exists but SSH fails | A generated URL is not an SSH health check. Quick Tunnel transport may not support this connection reliably. Consider a properly configured named tunnel with an SSH ingress service and Cloudflare Access, or another approved remote-debugging transport; neither is set up here. |
 | `cloudflared: command not found` on your device | Install cloudflared on the client and make sure it is in PATH. |
-| `Permission denied (publickey)` | Use the private key matching the workflow's public key and username `vpsuser`. |
+| Password login fails | Use username `vpsuser` and the password from the current run. Copy the printed SSH command, which explicitly selects password authentication for Arch. |
 | Host-key warning | Every run creates new host keys. Verify the current fingerprint; do not blindly ignore a mismatch. |
 | Session stops early | Check workflow logs, cancellation, job timeout, CI quota, or a tunnel/SSH process exiting. |
 | Files disappear | CI filesystems are disposable. Copy needed files out before cancellation or timeout; there is no automatic persistence. |
@@ -143,7 +131,7 @@ Use an **amd64 Linux Docker/Kubernetes runner that supports the `image:` setting
 - CPU, RAM, disk space, job duration, and included CI minutes depend on provider, runner type, repository visibility, and account plan. No fixed hardware allocation or unlimited free usage is promised.
 - Billing and storage limits change; check your current account settings instead of relying on hardcoded quota tables.
 - Each Quick Tunnel run gets a new hostname. No Cloudflare token is configured for this experimental Quick Tunnel setup; a named tunnel/Access deployment requires separate configuration.
-- The Arch workflow has no GitHub token permissions and does not check out repository files. Key-only SSH is not a replacement for correctly configured tunnel access controls.
+- The Arch workflow has no GitHub token permissions and does not check out repository files. Password login with credentials in logs is not a replacement for correctly configured tunnel access controls.
 - Downloaded cloudflared releases are currently unpinned and not checksum-verified. Do not use this setup for sensitive workloads.
 - Local static checks do not verify live GitHub/GitLab runs, client compatibility, or Cloudflare SSH transport.
 
@@ -158,18 +146,8 @@ Xhzz/
 ├── .gitlab/
 │   └── arch.yml          # Arch GitLab job, included by the root config
 ├── .gitlab-ci.yml        # Distro selector and Ubuntu GitLab job
-├── tests/               # Static CI configuration checks
 └── README.md
 ```
-
-## Validate configuration locally
-
-```bash
-python -m pip install -r tests/requirements.txt
-python -m unittest discover -s tests -v
-```
-
-These checks parse YAML, validate Bash syntax, check tool parity and GitLab selection rules, and ensure both Arch job scripts stay in sync. They do not start a remote session or contact Cloudflare.
 
 ## License
 

@@ -2,21 +2,6 @@ name: 🐧 Arch Linux Session
 
 on:
   workflow_dispatch:
-    inputs:
-      ssh_public_key:
-        description: "Your SSH public key (one line, e.g. contents of ~/.ssh/id_ed25519.pub). Never paste a private key."
-        required: true
-        type: string
-      duration_minutes:
-        description: "Session duration in minutes (setup time is additional)"
-        required: true
-        default: "30"
-        type: choice
-        options:
-          - "15"
-          - "30"
-          - "60"
-          - "120"
 
 permissions: {}
 
@@ -24,7 +9,7 @@ jobs:
   arch:
     name: Temporary Arch Linux container
     runs-on: ubuntu-24.04
-    timeout-minutes: 140
+    timeout-minutes: 350
     container:
       image: archlinux:base
       options: --init
@@ -52,29 +37,16 @@ jobs:
           chmod 755 /usr/local/bin/cloudflared
           cloudflared --version
 
-      - name: Configure key-only SSH
-        env:
-          SSH_PUBLIC_KEY: ${{ inputs.ssh_public_key }}
+      - name: Configure password SSH
         run: |
           set -euo pipefail
           useradd --create-home --shell /bin/bash vpsuser
-          # Unlock the account with an unknown random password; SSH passwords stay disabled.
-          password=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+          # Generate a fresh password for this disposable run; no user input required.
+          password=$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')
           printf 'vpsuser:%s\n' "$password" | chpasswd
+          install -m 600 /dev/null /run/arch-session-password
+          printf '%s\n' "$password" > /run/arch-session-password
           unset password
-          install -d -m 700 -o vpsuser -g vpsuser /home/vpsuser/.ssh
-          case "$SSH_PUBLIC_KEY" in
-            ssh-ed25519\ *|ssh-rsa\ *|ecdsa-sha2-*\ *|sk-*\ *) ;;
-            *) echo 'Expected an OpenSSH public key, not a private key.' >&2; exit 1 ;;
-          esac
-          printf '%s\n' "$SSH_PUBLIC_KEY" > /tmp/public-key
-          if [[ $(awk 'NF { n++ } END { print n+0 }' /tmp/public-key) != 1 ]]; then
-            echo 'Provide exactly one SSH public key.' >&2
-            exit 1
-          fi
-          ssh-keygen -lf /tmp/public-key
-          install -m 600 -o vpsuser -g vpsuser /tmp/public-key /home/vpsuser/.ssh/authorized_keys
-          rm -f /tmp/public-key
           # Administrative access inside this disposable container only.
           printf 'vpsuser ALL=(ALL:ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/vpsuser
           chmod 440 /etc/sudoers.d/vpsuser
@@ -86,11 +58,10 @@ jobs:
           ListenAddress 127.0.0.1
           HostKey /etc/ssh/ssh_host_ed25519_key
           PermitRootLogin no
-          PasswordAuthentication no
+          PasswordAuthentication yes
           KbdInteractiveAuthentication no
-          PubkeyAuthentication yes
-          AuthenticationMethods publickey
-          AuthorizedKeysFile .ssh/authorized_keys
+          PubkeyAuthentication no
+          AuthenticationMethods password
           AllowUsers vpsuser
           AllowAgentForwarding no
           X11Forwarding no
@@ -119,20 +90,14 @@ jobs:
           chmod 644 /home/vpsuser/.bash_profile
 
       - name: Start experimental SSH tunnel and keep session alive
-        env:
-          DURATION_MINUTES: ${{ inputs.duration_minutes }}
         run: |
           set -euo pipefail
-          case "$DURATION_MINUTES" in
-            15|30|60|120) ;;
-            *) echo 'Unsupported duration.' >&2; exit 1 ;;
-          esac
-
           /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config.session > /tmp/sshd.log 2>&1 &
           ssh_pid=$!
           cloudflared tunnel --url ssh://127.0.0.1:22 > /tmp/cloudflared.log 2>&1 &
           tunnel_pid=$!
           cleanup() {
+            rm -f /run/arch-session-password
             kill "$tunnel_pid" "$ssh_pid" 2>/dev/null || true
             wait "$tunnel_pid" "$ssh_pid" 2>/dev/null || true
           }
@@ -158,12 +123,14 @@ jobs:
           host=${url#https://}
           echo 'Arch Linux container ready; Quick Tunnel SSH transport is experimental.'
           echo "Tunnel: $url"
-          echo 'User: vpsuser (SSH key only; no login password)'
-          echo "ssh -i ~/.ssh/id_ed25519 -o ProxyCommand='cloudflared access ssh --hostname $host' vpsuser@$host"
+          echo 'WARNING: anyone who can read these logs can use the session password.'
+          echo 'User: vpsuser'
+          printf 'Password: %s\n' "$(cat /run/arch-session-password)"
+          echo "ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ProxyCommand='cloudflared access ssh --hostname $host' vpsuser@$host"
           echo 'A tunnel URL does not prove end-to-end SSH connectivity. See README troubleshooting.'
-          echo "Session ends in $DURATION_MINUTES minutes. Cancel this run to stop earlier."
+          echo 'Session lasts up to 5 hours after setup. Cancel this run to stop earlier.'
 
-          deadline=$((SECONDS + DURATION_MINUTES * 60))
+          deadline=$((SECONDS + 18000))
           while (( SECONDS < deadline )); do
             if ! kill -0 "$ssh_pid" 2>/dev/null || ! kill -0 "$tunnel_pid" 2>/dev/null; then
               echo 'SSH server or tunnel exited unexpectedly.' >&2
