@@ -85,7 +85,7 @@ arch:
       echo "║ 🔑 Password : vps@2026xyz"
       echo "╠════════════════════════════════════════════╣"
       echo "║ 💻 Termux CMD:"
-      echo "║ ssh -o ProxyCommand='cloudflared access ssh --hostname $HOST' vpsuser@$HOST"
+      echo "║ ssh -o LogLevel=ERROR -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ProxyCommand='cloudflared access ssh --hostname $HOST' vpsuser@$HOST"
       echo "╚════════════════════════════════════════════╝"
 
       # ⏳ Keep Alive
